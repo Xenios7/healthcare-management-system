@@ -1,0 +1,17 @@
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\bin\Debug\net9.0\EHRNurse.Data.deps.json
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\bin\Debug\net9.0\EHRNurse.Data.dll
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\bin\Debug\net9.0\EHRNurse.Data.pdb
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\bin\Debug\net9.0\EHRNurse.Domain.dll
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\bin\Debug\net9.0\EHRNurse.Domain.pdb
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.csproj.AssemblyReference.cache
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.AssemblyInfoInputs.cache
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.AssemblyInfo.cs
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.csproj.CoreCompileInputs.cache
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.6C977B6F.Up2Date
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.dll
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\refint\EHRNurse.Data.dll
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.pdb
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\ref\EHRNurse.Data.dll
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\bin\Debug\net9.0\EHRNurse.Data.runtimeconfig.json
+C:\Users\alext\Desktop\ehr-nurse-api\EHRNurse\EHRNurse.Data\obj\Debug\net9.0\EHRNurse.Data.genruntimeconfig.cache
