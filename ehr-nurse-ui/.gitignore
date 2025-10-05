@@ -1,116 +1,43 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-
-# Node modules
+# dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-package-lock.json
-*.log
 
-# Build directories
+# Expo
+.expo/
 dist/
-build/
-out/
-.eslintcache
+web-build/
+expo-env.d.ts
 
-# Metro / React Native cache
-.expo/
-.expo-shared/
-.expo-dev/
-.expo-packager-cache/
-.expo/packager-info.json
-.expo/settings.json
-.expo/manifest.json
-.expo/metro-cache/
-.expo/web-cache/
-.expo/packager-info.json
-.expo/packager-info.json.lock
-.metro-cache/
-.expo-cache/
-.expo3/
-.expo-settings/
-.expo-shared/
-.expo/
-.packager-info.json
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# React Native generated files
-ios/Pods/
-ios/build/
-ios/DerivedData/
-android/.gradle/
-android/build/
-android/app/build/
-android/.cxx/
-android/local.properties
-android/captures/
+# Metro
+.metro-health-check*
 
-# OS files
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
 .DS_Store
-Thumbs.db
+*.pem
 
-# IDE files
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-*.iml
+# local env files
+.env*.local
 
-# TypeScript
+# typescript
 *.tsbuildinfo
 
-# Environment variables
-.env
-.env.*
-.env.local
-.env.development
-.env.production
-.env.staging
-.env.test
+app-example
 
-# Jest / coverage
-coverage/
-*.lcov
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.bak
-
-# Yarn / npm cache
-.yarn/*
-!.yarn/releases
-!.yarn/plugins
-!.yarn/sdks
-!.yarn/versions
-.yarn/cache
-.pnp.*
-.pnp.js
-
-# CocoaPods (if you ever use bare workflow)
-ios/Pods/
-vendor/bundle/
-*.xcworkspace
-Podfile.lock
-
-# Android / Gradle
-.gradle/
-local.properties
-*.keystore
-key.properties
-
-# Misc
-*.orig
-*.rej
-*.seed
-*.pid
-*.pid.lock
-
-# Expo Web build
-web-build/
-web-dist/
+# generated native folders
+/ios
+/android
