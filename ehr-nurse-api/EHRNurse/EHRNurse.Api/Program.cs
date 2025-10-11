@@ -13,6 +13,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         .UseSnakeCaseNamingConvention()
 );
 
+// Program.cs, right after builder created:
+var conn = builder.Configuration.GetConnectionString("DefaultConnection");
+Console.WriteLine($"Using connection: {new Npgsql.NpgsqlConnectionStringBuilder(conn) { Password = "" }}");
+
+
 
 
 builder.Services.AddControllers();
