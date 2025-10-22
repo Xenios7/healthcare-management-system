@@ -1,6 +1,5 @@
-using EHRNurse.Domain.Dto.Auth;
-//using EHRNurse.Domain.Interfaces;
-using EHRNurse.Data.Interfaces;
+using EHRNurse.Api.Dto;
+using EHRNurse.Api.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EHRNurse.Api.Controllers;
@@ -13,9 +12,12 @@ public class AuthController : ControllerBase
     public AuthController(IAuthService auth) => _auth = auth;
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest req, CancellationToken ct)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        var res = await _auth.LoginAsync(req, ct);
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { message = "Email and password are required" });
+
+        var res = await _auth.LoginAsync(request, ct);
         if (res == null)
             return Unauthorized(new { message = "Invalid email or password" });
 

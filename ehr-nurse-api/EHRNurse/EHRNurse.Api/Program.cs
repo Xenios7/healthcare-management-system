@@ -1,9 +1,9 @@
 using System.Text;
-using EHRNurse.Api.Services;               // JwtOptions
-//using EHRNurse.Domain.Interface;          // IAuthService, IUserRepository
+using EHRNurse.Api.Services;
+using EHRNurse.Api.Interfaces;
 using EHRNurse.Data.Interfaces;
-using EHRNurse.Data.Models;                       // EhrDbContext
-using EHRNurse.Data.Repositories;          // UserRepository
+using EHRNurse.Data.Models;
+using EHRNurse.Data.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -16,19 +16,20 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
         .UseSnakeCaseNamingConvention()
 );
-
+// JWT options
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 
+// DI
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// authentication (JWT)
+// AuthN
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {
-        opt.TokenValidationParameters = new()
+        opt.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
@@ -41,16 +42,16 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// CORS (open for RN dev)
 builder.Services.AddCors(policy =>
 {
-    policy.AddDefaultPolicy(p =>
-        p.AllowAnyOrigin()
-         .AllowAnyHeader()
-         .AllowAnyMethod());
+    policy.AddDefaultPolicy(p => p
+        .AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod());
 });
 
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -63,5 +64,6 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 app.Run();

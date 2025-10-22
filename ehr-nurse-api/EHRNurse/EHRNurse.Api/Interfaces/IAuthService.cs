@@ -1,8 +1,6 @@
-using System.Threading;
-using System.Threading.Tasks;
-using EHRNurse.Domain.Dto.Auth;  
+using EHRNurse.Api.Dto;
 
-namespace EHRNurse.Data.Interfaces
+namespace EHRNurse.Api.Interfaces
 {
     public interface IAuthService
     {

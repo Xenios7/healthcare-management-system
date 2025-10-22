@@ -1,4 +1,4 @@
-namespace EHRNurse.Domain.Dto.Auth
+namespace EHRNurse.Api.Dto
 {
     public class LoginRequest
     {
