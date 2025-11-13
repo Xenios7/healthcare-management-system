@@ -1,13 +1,8 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Linq;
 using EHRNurse.Api.Dto;
 using EHRNurse.Api.Interfaces;
-using EHRNurse.Data.Interfaces;
-using EHRNurse.Data.Models;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace EHRNurse.Api.Services
 {
