@@ -19,6 +19,13 @@ import { theme } from '../../styles/theme';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// add your own IP-address
+const API_BASE_URL =
+  Platform.select({
+    web: 'http://localhost:5164',
+    default:  'http://10.82.37.134:5164'
+  });
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,7 +61,7 @@ export default function Login() {
       setLoading(true);
 
       //  REMINDER : otan to API mas tha ine etimo tha kanoume allagi to URL
-      const response = await fetch('http://localhost:5164/api/Auth/login', {
+      const response = await fetch(`${API_BASE_URL}/api/Auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +75,7 @@ export default function Login() {
       if (!data.token) throw new Error('Login failed: no token received.');
 
       await AsyncStorage.setItem('auth_token', data.token);
-      router.replace('/(tabs)');
+      router.replace('/home');
     } catch (error: any) {
       Alert.alert('Login failed', error.message || 'An error occurred.');
       console.error('Login error:', error);

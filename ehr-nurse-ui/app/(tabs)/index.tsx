@@ -13,6 +13,7 @@ export default function Index() {
   useEffect(() => {
     
     const checkAuth = async () => {
+      await AsyncStorage.removeItem('auth_token');
       try {
         const token = await AsyncStorage.getItem('auth_token');
         setIsAuthed(!!token);
@@ -32,7 +33,9 @@ export default function Index() {
     
     if (isAuthed) {
       router.replace('/home');
-    } 
+    } else {
+      router.replace('/login');
+    }
   }, [isReady, isAuthed, router]);
 
   if (!isReady) {

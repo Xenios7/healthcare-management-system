@@ -69,6 +69,7 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.Urls.Add("http://0.0.0.0:5164");
 
 app.MapControllers();
 app.Run();
