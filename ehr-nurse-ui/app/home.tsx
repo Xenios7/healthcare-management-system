@@ -9,6 +9,9 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
+import { router } from "expo-router";
+
+const USER_NAME = "TEAM13";
 
 export default function HomeScreen() {
   return (
@@ -18,29 +21,69 @@ export default function HomeScreen() {
           style={styles.content}
           contentContainerStyle={{ paddingBottom: theme.spacing.md }}
         >
-          <Text style={styles.sectionTitle}>Today's Overview</Text>
+          <Text style={styles.greeting} allowFontScaling={false}>
+            Hello {USER_NAME}
+          </Text>
+
+          <Text style={styles.sectionTitle} allowFontScaling={false}>
+            Today's Overview
+          </Text>
 
           <View style={styles.overviewRow}>
             {overviewItem(0, 15, "Given", "pill", "#e53935", "warning")}
-            {overviewItem(3, 15, "Given", "silverware-fork-knife", "#fb8c00", "warning")}
-            {overviewItem(15, 15, "Checked", "clipboard-text-outline", theme.colors.primaryDark, "check")}
-            {overviewItem(15, 15, "Appointments", "calendar-month-outline", theme.colors.primaryDark, "check")}
+            {overviewItem(
+              3,
+              15,
+              "Given",
+              "silverware-fork-knife",
+              "#fb8c00",
+              "warning"
+            )}
+            {overviewItem(
+              15,
+              15,
+              "Checked",
+              "clipboard-text-outline",
+              theme.colors.primaryDark,
+              "check"
+            )}
+            {overviewItem(
+              15,
+              15,
+              "Appointments",
+              "calendar-month-outline",
+              theme.colors.primaryDark,
+              "check"
+            )}
           </View>
 
-          <Text style={[styles.sectionTitle, { marginTop: theme.spacing.lg }]}>
+          <Text
+            style={[styles.sectionTitle, { marginTop: theme.spacing.lg }]}
+            allowFontScaling={false}
+          >
             Quick Actions
           </Text>
+
           <View style={styles.quickActionsRow}>
             <Pressable style={styles.quickActionCard}>
               <View style={styles.quickIconWrapper}>
-                <Ionicons name="qr-code-outline" size={32} color={theme.colors.primaryDark} />
+                <Ionicons
+                  name="qr-code-outline"
+                  size={32}
+                  color={theme.colors.primaryDark}
+                />
               </View>
-              <Text style={styles.quickActionText}>Scan patient</Text>
+              <Text style={styles.quickActionText} allowFontScaling={false}>
+                Scan patient
+              </Text>
             </Pressable>
             <View style={{ flex: 1 }} />
           </View>
 
-          <Text style={[styles.sectionTitle, { marginTop: theme.spacing.lg }]}>
+          <Text
+            style={[styles.sectionTitle, { marginTop: theme.spacing.lg }]}
+            allowFontScaling={false}
+          >
             Alerts
           </Text>
 
@@ -66,24 +109,41 @@ export default function HomeScreen() {
             <Ionicons name="home" size={26} color={theme.colors.primary} />
           </Pressable>
           <Pressable style={styles.bottomItem}>
-            <MaterialCommunityIcons name="clipboard-text-outline" size={26} color={theme.colors.mutedText} />
+            <MaterialCommunityIcons
+              name="clipboard-text-outline"
+              size={26}
+              color={theme.colors.mutedText}
+            />
           </Pressable>
           <Pressable style={styles.bottomItem}>
-            <MaterialCommunityIcons name="pill" size={26} color={theme.colors.mutedText} />
+            <MaterialCommunityIcons
+              name="pill"
+              size={26}
+              color={theme.colors.mutedText}
+            />
+          </Pressable>
+          <Pressable
+            style={styles.bottomItem}
+            onPress={() => router.push("/nutrition")}
+          >
+            <MaterialCommunityIcons
+              name="silverware-fork-knife"
+              size={26}
+              color={theme.colors.mutedText}
+            />
           </Pressable>
           <Pressable style={styles.bottomItem}>
-            <MaterialCommunityIcons name="silverware-fork-knife" size={26} color={theme.colors.mutedText} />
-          </Pressable>
-          <Pressable style={styles.bottomItem}>
-            <Ionicons name="calendar-outline" size={26} color={theme.colors.mutedText} />
+            <Ionicons
+              name="calendar-outline"
+              size={26}
+              color={theme.colors.mutedText}
+            />
           </Pressable>
         </View>
       </View>
     </SafeAreaView>
   );
 }
-
-/* ---------- helper components ---------- */
 
 type OverviewStatus = "warning" | "check" | "none";
 
@@ -97,31 +157,44 @@ function overviewItem(
 ) {
   return (
     <View style={styles.overviewCard}>
-      {/* Left block */}
       <View style={styles.overviewLeft}>
         <View style={styles.overviewIconCircle}>
-          <MaterialCommunityIcons name={icon} size={20} color="#ffffff" />
+          <MaterialCommunityIcons name={icon} size={20} color="#fff" />
         </View>
 
         <View style={styles.overviewTextBlock}>
           <View style={styles.overviewCountRow}>
-            <Text style={[styles.overviewCountMain, { color: highlightColor }]}>{current}</Text>
-            <Text style={styles.overviewCountSlash}>/{total}</Text>
+            <Text
+              style={[styles.overviewCountMain, { color: highlightColor }]}
+              allowFontScaling={false}
+            >
+              {current}
+            </Text>
+            <Text style={styles.overviewCountSlash} allowFontScaling={false}>
+              /{total}
+            </Text>
           </View>
-          {/* Allow wrapping so whole word shows */}
-          <Text style={styles.overviewLabel} numberOfLines={2}>
+
+          <Text
+            style={styles.overviewLabel}
+            allowFontScaling={false}
+            numberOfLines={2}
+          >
             {label}
           </Text>
         </View>
       </View>
 
-      {/* Right fixed-width status slot */}
       <View style={styles.overviewRight}>
         {status === "warning" && (
           <Ionicons name="warning" size={18} color="#fbbf24" />
         )}
         {status === "check" && (
-          <Ionicons name="checkmark-circle-outline" size={18} color={theme.colors.primary} />
+          <Ionicons
+            name="checkmark-circle-outline"
+            size={18}
+            color={theme.colors.primary}
+          />
         )}
       </View>
     </View>
@@ -141,12 +214,14 @@ function alertItem(message: string, type: "warning" | "info" = "warning") {
         color={iconColor}
         style={{ marginRight: theme.spacing.sm }}
       />
-      <Text style={styles.alertText}>{message}</Text>
+      <Text style={styles.alertText} allowFontScaling={false}>
+        {message}
+      </Text>
     </View>
   );
 }
 
-/* ---------- styles ---------- */
+/* Styles unchanged – NO need to modify */
 
 const styles = StyleSheet.create({
   screen: {
@@ -165,25 +240,27 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  greeting: {
+    fontSize: theme.font.lg,
+    fontWeight: "700",
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
   sectionTitle: {
     fontSize: theme.font.lg,
     fontWeight: "800",
     marginBottom: theme.spacing.sm,
     color: "rgba(15, 23, 42, 0.85)",
   },
-
-  /* Overview: 2 per row, no clipping, fixed right slot */
   overviewRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    paddingHorizontal: theme.spacing.xs,
     marginBottom: theme.spacing.md,
   },
   overviewCard: {
     width: "48%",
     marginBottom: theme.spacing.sm,
-
     flexDirection: "row",
     alignItems: "center",
     borderRadius: theme.radii.md,
@@ -191,19 +268,18 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.inputBg,
     paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
     minHeight: 60,
   },
   overviewLeft: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1, // take all available width except the right slot
-    paddingLeft: theme.spacing.sm,
+    flex: 1,
   },
   overviewRight: {
-    width: 28,          
+    width: 26,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: theme.spacing.sm,
   },
   overviewIconCircle: {
     width: 30,
@@ -215,7 +291,7 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.sm,
   },
   overviewTextBlock: {
-    flex: 1,                
+    flex: 1,
     flexShrink: 1,
   },
   overviewCountRow: {
@@ -237,16 +313,12 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: theme.colors.mutedText,
   },
-
-  /* Quick actions */
   quickActionsRow: {
     flexDirection: "row",
     marginTop: theme.spacing.xs,
   },
   quickActionCard: {
     flex: 1,
-    maxWidth: 220,
-    height: 100,
     borderRadius: theme.radii.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -255,6 +327,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     alignItems: "flex-start",
     justifyContent: "space-between",
+    minHeight: 100,
   },
   quickIconWrapper: {
     width: 36,
@@ -270,8 +343,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: theme.colors.text,
   },
-
-  /* Alerts */
   alertsContainer: {
     marginTop: theme.spacing.sm,
   },
@@ -285,8 +356,6 @@ const styles = StyleSheet.create({
     fontSize: theme.font.sm,
     color: theme.colors.text,
   },
-
-  /* Bottom nav */
   bottomNav: {
     flexDirection: "row",
     alignItems: "center",
@@ -301,3 +370,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+
+export {};
