@@ -22,6 +22,7 @@ public class MedicationListItemDto
 
     public string? InstructionPatient { get; set; }
     public DateTime? EndDate { get; set; }
-
+    public string Status { get; set; } = "not_given";
+    public bool HasReminder { get; set; }
 
 }
