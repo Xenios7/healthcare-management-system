@@ -15,7 +15,6 @@ public partial class AppDbContext : DbContext
     {
     }
     
-    public virtual DbSet<Medication> Medications { get; set; } = null!;
     public virtual DbSet<AccommodationBed> AccommodationBeds { get; set; }
 
     public virtual DbSet<AccommodationBuilding> AccommodationBuildings { get; set; }
