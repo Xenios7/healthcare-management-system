@@ -88,7 +88,7 @@ export default function Login() {
       if (!data.token) throw new Error('Login failed: no token received.');
 
       await AsyncStorage.setItem('auth_token', data.token);
-      router.replace('/home');
+      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Login failed', error.message || 'An error occurred.');
       console.error('Login error:', error);
@@ -242,7 +242,7 @@ export default function Login() {
           if (result.success) {
             const storedToken = await getToken();
             if (storedToken) {
-              router.replace('/');
+              router.replace('/(tabs)');
             } else {
               Alert.alert('No saved session', 'Please log in first with your credentials.');
             }
