@@ -8,19 +8,23 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const [userName, setUserName] = useState<string>("User");
+
+  // 1ο κουτάκι: μικρό "Log out"
+  const [showLogoutMenu, setShowLogoutMenu] = useState(false);
+  // 2ο κουτάκι: confirm μήνυμα
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     const loadUserName = async () => {
       try {
         const storedName = await AsyncStorage.getItem("user_first_name");
-        if (storedName) {
-          setUserName(storedName);
-        }
+        if (storedName) setUserName(storedName);
       } catch (e) {
         console.log("Failed to load user name", e);
       }
@@ -29,28 +33,106 @@ export default function HomeScreen() {
     loadUserName();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove([
+        "user_first_name",
+        "auth_token",
+        "user_id",
+      ]);
+    } catch (e) {
+      console.log("Failed to clear storage on logout", e);
+    }
+
+    router.replace("/login");
+  };
+
+  const closeAllLogoutUi = () => {
+    setShowLogoutMenu(false);
+    setShowConfirm(false);
+  };
+
   return (
-    // 🔹 Απλό View αντί για SafeAreaView, σταθερό paddingTop
-    <View style={styles.screen}>
+    <SafeAreaView
+      style={styles.screen}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <View style={styles.panel}>
         <ScrollView
           style={styles.content}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            { paddingBottom: theme.spacing.lg + 60 },
+          ]}
         >
-          {/* ---------- HEADER "HELLO <USER>" ---------- */}
+          {/* ---------- HEADER ---------- */}
           <View style={styles.headerRow}>
-            <View style={styles.headerIconCircle}>
+            <Pressable
+              onPress={() => {
+                // toggle πρώτο κουτί
+                setShowConfirm(false);
+                setShowLogoutMenu((prev) => !prev);
+              }}
+              style={styles.headerIconCircle}
+            >
               <Ionicons
                 name="person-outline"
                 size={34}
                 color={theme.colors.primaryDark}
               />
-            </View>
+            </Pressable>
+
             <View>
               <Text style={styles.headerTitle}>Hello {userName}</Text>
             </View>
           </View>
 
+          {/* ---------- 1ο ΚΟΥΤΙ: μικρό "Log out" ---------- */}
+          {showLogoutMenu && !showConfirm && (
+            <View style={styles.logoutBoxWrapper}>
+              <View style={styles.logoutBox}>
+                <Pressable
+                  style={styles.logoutMainButton}
+                  onPress={() => {
+                    setShowLogoutMenu(false);
+                    setShowConfirm(true);
+                  }}
+                >
+                  <Text style={styles.logoutMainButtonText}>Log out</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* ---------- 2ο ΚΟΥΤΙ: μήνυμα + Cancel / Log out ---------- */}
+          {showConfirm && (
+            <View style={styles.logoutBoxWrapper}>
+              <View style={styles.confirmBox}>
+                <Text style={styles.logoutTitle}>Log Out?</Text>
+                <Text style={styles.logoutMessage}>
+                  Are you sure you want to log out?
+                </Text>
+
+                <View style={styles.logoutButtonsRow}>
+                  <Pressable
+                    style={[styles.logoutBtn, styles.logoutCancelBtn]}
+                    onPress={closeAllLogoutUi}
+                  >
+                    <Text style={styles.logoutCancelText}>Cancel</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.logoutBtn, styles.logoutConfirmBtn]}
+                    onPress={handleLogout}
+                  >
+                    <Text style={styles.logoutConfirmText}>Log out</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ---------- Υπόλοιπο περιεχόμενο ---------- */}
           <Text style={styles.sectionTitle}>Today's Overview</Text>
 
           <View style={styles.overviewRow}>
@@ -139,6 +221,7 @@ export default function HomeScreen() {
           <ShiftManagementCard />
         </ScrollView>
 
+        {/* ---------- BOTTOM NAV ---------- */}
         <View style={styles.bottomNav}>
           <Pressable style={styles.bottomItem}>
             <Ionicons
@@ -177,7 +260,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -350,13 +433,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.card,
-    paddingTop: theme.spacing.md, // 🔹 σταθερό κενό πάνω (ίδιο σε iOS/Android)
   },
 
   panel: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 0,
     backgroundColor: theme.colors.card,
   },
 
@@ -365,10 +446,9 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
-    paddingBottom: theme.spacing.md,
   },
 
-  /* HEADER "HELLO USER" */
+  /* HEADER */
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -387,6 +467,92 @@ const styles = StyleSheet.create({
     fontSize: theme.font.xl ?? 22,
     fontWeight: "700",
     color: theme.colors.text,
+  },
+
+  /* 1ο μικρό κουτί Logout */
+  logoutBoxWrapper: {
+    alignSelf: "flex-start",
+    marginLeft: 6,
+    marginBottom: theme.spacing.md,
+  },
+  logoutBox: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minWidth: 170,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  logoutMainButton: {
+    alignSelf: "center",
+    paddingHorizontal: 28,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#c2410c",
+  },
+  logoutMainButtonText: {
+    color: "#ffffff",
+    fontWeight: "600",
+    fontSize: theme.font.sm,
+  },
+
+  /* 2ο κουτί confirm */
+  confirmBox: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minWidth: 200,
+    maxWidth: 240,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  logoutTitle: {
+    fontSize: theme.font.sm,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  logoutMessage: {
+    fontSize: theme.font.sm,
+    color: "#4b5563",
+    marginBottom: 12,
+  },
+  logoutButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  logoutBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    minWidth: 80,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  logoutCancelBtn: {
+    backgroundColor: "#e5e7eb",
+  },
+  logoutConfirmBtn: {
+    backgroundColor: "#c2410c",
+  },
+  logoutCancelText: {
+    fontSize: theme.font.sm,
+    color: "#111827",
+    fontWeight: "500",
+  },
+  logoutConfirmText: {
+    fontSize: theme.font.sm,
+    color: "#ffffff",
+    fontWeight: "600",
   },
 
   sectionTitle: {
@@ -576,10 +742,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingVertical: theme.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
   },
   bottomItem: {
     flex: 1,
