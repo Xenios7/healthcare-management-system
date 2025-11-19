@@ -1,0 +1,257 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  StyleSheet,
+} from 'react-native';
+import {
+  getAppointments,
+  markCompleted,
+  markPostponed,
+  markDoNotAttempt,
+  AppointmentPatientDto,
+  AppointmentFilter,
+} from '../utils/appointmentsApi';
+
+const FILTERS: AppointmentFilter[] = ['upcoming', 'completed', 'all'];
+
+export default function AppointmentsScreen() {
+  const [filter, setFilter] = useState<AppointmentFilter>('upcoming');
+  const [appointments, setAppointments] = useState<AppointmentPatientDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // TODO: wire this from your auth / user context
+  const patientId = undefined as number | undefined; 
+
+  const loadAppointments = useCallback(async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      const data = await getAppointments(filter, patientId);
+      setAppointments(data);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to load appointments');
+    } finally {
+      setLoading(false);
+    }
+  }, [filter, patientId]);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
+
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await loadAppointments();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadAppointments]);
+
+  const handleStatusChange = async (
+    id: number,
+    action: 'COMPLETED' | 'POSTPONED' | 'DNA',
+  ) => {
+    try {
+      setError(null);
+
+      if (action === 'COMPLETED') {
+        await markCompleted(id);
+      } else if (action === 'POSTPONED') {
+        await markPostponed(id);
+      } else {
+        await markDoNotAttempt(id);
+      }
+
+      await loadAppointments();
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to update appointment');
+    }
+  };
+
+  const renderFilterButtons = () => (
+    <View style={styles.filterRow}>
+      {FILTERS.map(f => (
+        <TouchableOpacity
+          key={f}
+          style={[
+            styles.filterButton,
+            filter === f && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilter(f)}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              filter === f && styles.filterButtonTextActive,
+            ]}
+          >
+            {f.toUpperCase()}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const renderItem = ({ item }: { item: AppointmentPatientDto }) => {
+    const date = new Date(item.startDate);
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.date}>
+          {date.toLocaleDateString()} {date.toLocaleTimeString()}
+        </Text>
+        {item.comments ? (
+          <Text style={styles.comments}>{item.comments}</Text>
+        ) : null}
+        <Text style={styles.status}>
+          Status:{' '}
+          <Text style={styles.statusValue}>
+            {item.statusDisplay ?? 'Scheduled'}
+          </Text>
+        </Text>
+
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.completedButton]}
+            onPress={() => handleStatusChange(item.id, 'COMPLETED')}
+          >
+            <Text style={styles.actionButtonText}>Completed</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.postponedButton]}
+            onPress={() => handleStatusChange(item.id, 'POSTPONED')}
+          >
+            <Text style={styles.actionButtonText}>Postponed</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.dnaButton]}
+            onPress={() => handleStatusChange(item.id, 'DNA')}
+          >
+            <Text style={styles.actionButtonText}>Do not attempt</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {renderFilterButtons()}
+
+      {loading && !refreshing ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+        </View>
+      ) : (
+        <FlatList
+          data={appointments}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={
+            appointments.length === 0 ? styles.emptyContainer : undefined
+          }
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <Text style={styles.emptyText}>No appointments found.</Text>
+            ) : null
+          }
+        />
+      )}
+
+      {error && (
+        <View style={styles.errorBar}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 40, paddingHorizontal: 12 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  filterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginHorizontal: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  filterButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  filterButtonText: { fontSize: 12, color: '#333' },
+  filterButtonTextActive: { color: 'white', fontWeight: '600' },
+
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  title: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  date: { fontSize: 13, color: '#666', marginBottom: 4 },
+  comments: { fontSize: 13, color: '#444', marginBottom: 6 },
+  status: { fontSize: 13, color: '#555', marginBottom: 8 },
+  statusValue: { fontWeight: '600' },
+
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: 3,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  actionButtonText: { fontSize: 12, color: 'white', fontWeight: '600' },
+  completedButton: { backgroundColor: '#34C759' },
+  postponedButton: { backgroundColor: '#FF9500' },
+  dnaButton: { backgroundColor: '#FF3B30' },
+
+  emptyContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: { color: '#666' },
+
+  errorBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#ff3b30',
+    padding: 8,
+  },
+  errorText: { color: 'white', textAlign: 'center', fontSize: 12 },
+});

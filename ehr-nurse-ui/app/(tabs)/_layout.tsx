@@ -23,17 +23,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Profile Screen */}
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="person" color={color} size={size} />
-          ),
-        }}
-      />
-
       {/* QR Code Scanner Screen  */}
       <Tabs.Screen
         name="qrcode"
@@ -41,6 +30,11 @@ export default function TabsLayout() {
           href: null,                     
           tabBarStyle: { display: "none" },  
         }}
+      />
+      {/* Appointments Screen */}
+      <Tabs.Screen
+        name="Appointments"
+        options={{ title: 'Appointments' }}
       />
     </Tabs>
   );
