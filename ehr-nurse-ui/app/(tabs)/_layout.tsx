@@ -1,14 +1,7 @@
-<<<<<<< HEAD
 import { Tabs } from "expo-router";
+import React from "react";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { theme } from "../../styles/theme";
-import React from "react";
-=======
-import { Tabs } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import { theme } from '../../styles/theme';
-import React from 'react';
->>>>>>> origin/main
 
 export default function TabsLayout() {
   return (
@@ -19,16 +12,17 @@ export default function TabsLayout() {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.mutedText,
         tabBarStyle: {
-          backgroundColor: theme.colors.card,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-around",
           borderTopWidth: 1,
           borderTopColor: theme.colors.border,
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 10,
+          paddingVertical: theme.spacing.sm,
+          height: 60,
+          backgroundColor: theme.colors.card,
         },
       }}
     >
-      {/* Home Screen */}
       <Tabs.Screen
         name="index"
         options={{
@@ -38,10 +32,6 @@ export default function TabsLayout() {
         }}
       />
 
-<<<<<<< HEAD
-=======
-      {/* Profile Screen */}
->>>>>>> origin/main
       <Tabs.Screen
         name="patients"
         options={{
@@ -83,15 +73,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="calendar-outline" size={26} color={color} />
           ),
-        }}
-      />
-
-      {/* QR Code Scanner Screen  */}
-      <Tabs.Screen
-        name="qrcode"
-        options={{
-          href: null,                     
-          tabBarStyle: { display: "none" },  
         }}
       />
     </Tabs>

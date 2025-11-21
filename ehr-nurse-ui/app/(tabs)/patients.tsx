@@ -38,7 +38,7 @@ export default function PatientsScreen() {
     <SafeAreaView style={styles.screen}>
       <View style={styles.panel}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.push("/(tabs)")}>
+          <Pressable onPress={() => router.push("/home")}>
             <Ionicons name="chevron-back" size={26} color={theme.colors.text} />
           </Pressable>
 

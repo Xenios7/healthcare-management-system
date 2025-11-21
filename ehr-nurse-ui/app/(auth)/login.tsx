@@ -109,9 +109,6 @@ export default function Login() {
 
       await saveToken(data.token);
       await AsyncStorage.setItem('auth_token', data.token);
-<<<<<<< HEAD
-      router.replace('/(tabs)');
-=======
 
       // 🔐 ΕΔΩ ΣΗΜΕΙΩΝΟΥΜΕ ΟΤΙ ΕΚΑΝΕ LOGIN ΜΕ ΚΩΔΙΚΟ
       await AsyncStorage.setItem(PASSWORD_LOGIN_FLAG_KEY, 'true');
@@ -124,7 +121,6 @@ export default function Login() {
       }
 
       router.replace('/home');
->>>>>>> origin/main
     } catch (error: any) {
       Alert.alert('Login failed', error.message || 'An error occurred.');
       console.error('Login error:', error);
@@ -257,64 +253,6 @@ export default function Login() {
               );
               const hasCompleted = passwordFlag === 'true';
 
-<<<<<<< HEAD
-            const result = await biometricPrompt();
-
-            if (result.success) {
-              const storedToken = await getToken();
-              if (storedToken) router.replace('/(tabs)');
-              else Alert.alert('No saved session', 'Please log in first.');
-            } else if (result.error) {
-              Alert.alert('Biometric Error', result.error);
-            }
-          }}
-          style={({ pressed }) => [
-            styles.fingerprintButton,
-            { opacity: pressed ? 0.8 : 1 },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name="fingerprint"
-            size={64}
-            color={theme.colors.primaryDark}
-          />
-        </Pressable>
-        <Text style={styles.fingerprintLabel}>Login with fingerprint</Text>
-      </View> */}
-
-      <Pressable
-        onPress={async () => {
-          const result = await biometricPrompt();
-
-          if (result.success) {
-            const storedToken = await getToken();
-            if (storedToken) {
-              router.replace('/(tabs)');
-            } else {
-              Alert.alert('No saved session', 'Please log in first with your credentials.');
-            }
-          } else {
-            if (result.error === 'user_cancel' || result.error === 'system_cancel') {
-              // user canceled
-              console.log('User canceled biometric login. Showing password form.');
-            } else {
-              Alert.alert('Biometric Error', result.error || 'Authentication failed.');
-            }
-          }
-        }}
-        style={({ pressed }) => [
-          styles.fingerprintButton,
-          { opacity: pressed ? 0.8 : 1 },
-        ]}
-      >
-        <MaterialCommunityIcons
-          name="fingerprint"
-          size={64}
-          color={theme.colors.primaryDark}
-        />
-      </Pressable>
-      <Text style={styles.fingerprintLabel}>Login with fingerprint</Text>
-=======
               if (!hasCompleted) {
                 Alert.alert(
                   'Fingerprint disabled',
@@ -322,7 +260,6 @@ export default function Login() {
                 );
                 return;
               }
->>>>>>> origin/main
 
               const result = await biometricPrompt();
 

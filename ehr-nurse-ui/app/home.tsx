@@ -14,10 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const [userName, setUserName] = useState<string>("User");
-
-  // 1ο κουτάκι: μικρό "Log out"
   const [showLogoutMenu, setShowLogoutMenu] = useState(false);
-  // 2ο κουτάκι: confirm μήνυμα
   const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
@@ -25,11 +22,8 @@ export default function HomeScreen() {
       try {
         const storedName = await AsyncStorage.getItem("user_first_name");
         if (storedName) setUserName(storedName);
-      } catch (e) {
-        console.log("Failed to load user name", e);
-      }
+      } catch (e) {}
     };
-
     loadUserName();
   }, []);
 
@@ -40,10 +34,7 @@ export default function HomeScreen() {
         "auth_token",
         "user_id",
       ]);
-    } catch (e) {
-      console.log("Failed to clear storage on logout", e);
-    }
-
+    } catch (e) {}
     router.replace("/login");
   };
 
@@ -65,11 +56,9 @@ export default function HomeScreen() {
             { paddingBottom: theme.spacing.lg + 60 },
           ]}
         >
-          {/* ---------- HEADER ---------- */}
           <View style={styles.headerRow}>
             <Pressable
               onPress={() => {
-                // toggle πρώτο κουτί
                 setShowConfirm(false);
                 setShowLogoutMenu((prev) => !prev);
               }}
@@ -87,7 +76,6 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* ---------- 1ο ΚΟΥΤΙ: μικρό "Log out" ---------- */}
           {showLogoutMenu && !showConfirm && (
             <View style={styles.logoutBoxWrapper}>
               <View style={styles.logoutBox}>
@@ -104,7 +92,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* ---------- 2ο ΚΟΥΤΙ: μήνυμα + Cancel / Log out ---------- */}
           {showConfirm && (
             <View style={styles.logoutBoxWrapper}>
               <View style={styles.confirmBox}>
@@ -132,7 +119,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* ---------- Υπόλοιπο περιεχόμενο ---------- */}
           <Text style={styles.sectionTitle}>Today's Overview</Text>
 
           <View style={styles.overviewRow}>
@@ -212,7 +198,6 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {/* SHIFT MANAGEMENT */}
           <Text
             style={[styles.sectionTitle, { marginTop: theme.spacing.lg }]}
           >
@@ -221,37 +206,55 @@ export default function HomeScreen() {
           <ShiftManagementCard />
         </ScrollView>
 
-        {/* ---------- BOTTOM NAV ---------- */}
         <View style={styles.bottomNav}>
-          <Pressable style={styles.bottomItem}>
+          <Pressable
+            style={styles.bottomItem}
+            onPress={() => router.replace("/home")}
+          >
             <Ionicons
               name="home"
               size={26}
               color={theme.colors.primary}
             />
           </Pressable>
-          <Pressable style={styles.bottomItem}>
+
+          <Pressable
+            style={styles.bottomItem}
+            onPress={() => router.replace("/patients")}
+          >
             <MaterialCommunityIcons
               name="clipboard-text-outline"
               size={26}
               color={theme.colors.mutedText}
             />
           </Pressable>
-          <Pressable style={styles.bottomItem}>
+
+          <Pressable
+            style={styles.bottomItem}
+            onPress={() => router.replace("/medication")}
+          >
             <MaterialCommunityIcons
               name="pill"
               size={26}
               color={theme.colors.mutedText}
             />
           </Pressable>
-          <Pressable style={styles.bottomItem}>
+
+          <Pressable
+            style={styles.bottomItem}
+            onPress={() => router.replace("/nutrition")}
+          >
             <MaterialCommunityIcons
               name="silverware-fork-knife"
               size={26}
               color={theme.colors.mutedText}
             />
           </Pressable>
-          <Pressable style={styles.bottomItem}>
+
+          <Pressable
+            style={styles.bottomItem}
+            onPress={() => router.replace("/calendar")}
+          >
             <Ionicons
               name="calendar-outline"
               size={26}
@@ -263,8 +266,6 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-/* ---------- helper components ---------- */
 
 type OverviewStatus = "warning" | "check" | "none";
 
@@ -335,8 +336,6 @@ function alertItem(message: string, type: "warning" | "info" = "warning") {
     </View>
   );
 }
-
-/* ---------- Shift Management Card ---------- */
 
 function ShiftManagementCard() {
   const [isActive, setIsActive] = useState(false);
@@ -427,8 +426,6 @@ function ShiftManagementCard() {
   );
 }
 
-/* ---------- styles ---------- */
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -448,7 +445,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
-  /* HEADER */
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -469,7 +465,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
-  /* 1ο μικρό κουτί Logout */
   logoutBoxWrapper: {
     alignSelf: "flex-start",
     marginLeft: 6,
@@ -500,7 +495,6 @@ const styles = StyleSheet.create({
     fontSize: theme.font.sm,
   },
 
-  /* 2ο κουτί confirm */
   confirmBox: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
@@ -672,7 +666,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
-  /* SHIFT MANAGEMENT */
   shiftWrapper: {
     marginTop: theme.spacing.sm,
     width: "100%",

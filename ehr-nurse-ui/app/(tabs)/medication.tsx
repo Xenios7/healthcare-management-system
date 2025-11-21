@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,10 +7,17 @@ import {
   TextInput,
   Pressable,
   SafeAreaView,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "../../styles/theme";
 import { router } from "expo-router";
+
+const API_BASE_URL = Platform.select({
+  web: "http://localhost:5164",
+  default: "http://172.22.240.1:5164",
+});
 
 type FilterType = "All" | "Not Given" | "Given";
 
@@ -22,76 +29,33 @@ type DayInfo = {
 };
 
 type MedCard = {
-  id: string;
-  patientName: string;
-  age: number;
-  ward: string;
-  room: string;
-  bed: string;
-  daysAdmitted: number;
-  medName: string;
-  doseText: string;
-  instructions: string;
-  endDate: string;
-  isGiven: boolean;
-  hasReminder: boolean;
+  MedicationId: number;
+  PatientId: number;
+  PatientName: string;
+  PatientAge: number | null;
+  Ward: string;
+  Bed: string;
+  DaysInWard: number;
+  ProductName: string;
+  Form: string | null;
+  Quantity: number;
+  QuantityUnit: string;
+  FrequencyAmount: number;
+  FrequencyUnit: string;
+  DurationAmount: number;
+  DurationUnit: string;
+  Route: string | null;
+  InstructionPatient: string | null;
+  EndDate: string | null;
+  Status: string;
+  HasReminder: boolean;
 };
-
-const INITIAL_MEDS: MedCard[] = [
-  {
-    id: "1",
-    patientName: "John Smith",
-    age: 66,
-    ward: "1",
-    room: "101",
-    bed: "1",
-    daysAdmitted: 88,
-    medName: "Paracetamol",
-    doseText: "500mg – 1 tablet",
-    instructions: "Take with water.",
-    endDate: "n/a",
-    isGiven: true,
-    hasReminder: false,
-  },
-  {
-    id: "2",
-    patientName: "Maria Pap",
-    age: 72,
-    ward: "2",
-    room: "203",
-    bed: "2",
-    daysAdmitted: 12,
-    medName: "Aspirin",
-    doseText: "75mg",
-    instructions: "Take after food.",
-    endDate: "20/11/2024",
-    isGiven: false,
-    hasReminder: true,
-  },
-  {
-    id: "3",
-    patientName: "Andreas Ioannou",
-    age: 81,
-    ward: "1",
-    room: "115",
-    bed: "3",
-    daysAdmitted: 3,
-    medName: "Paracetamol",
-    doseText: "20mg",
-    instructions: "Morning only.",
-    endDate: "n/a",
-    isGiven: false,
-    hasReminder: false,
-  },
-];
 
 function buildDaysAround(date: Date): DayInfo[] {
   const days: DayInfo[] = [];
-
   for (let offset = -2; offset <= 3; offset++) {
     const d = new Date(date);
     d.setDate(date.getDate() + offset);
-
     days.push({
       key: d.toISOString().substring(0, 10),
       label: d.toLocaleDateString(undefined, { weekday: "short" }),
@@ -99,55 +63,51 @@ function buildDaysAround(date: Date): DayInfo[] {
       isToday: offset === 0,
     });
   }
-
   return days;
 }
 
 export default function MedicationScreen() {
   const [lastSynced] = useState(new Date());
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("All");
-
   const [currentBaseDate, setCurrentBaseDate] = useState(new Date());
   const days = useMemo(() => buildDaysAround(currentBaseDate), [currentBaseDate]);
   const initialDay = days.find((d) => d.isToday)?.key ?? days[0].key;
   const [selectedDayKey, setSelectedDayKey] = useState(initialDay);
-
-  const [meds, setMeds] = useState(INITIAL_MEDS);
-
+  const [meds, setMeds] = useState<MedCard[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const toggleGiven = (id: string) => {
-    setMeds((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, isGiven: !m.isGiven } : m))
-    );
+  const loadMeds = async () => {
+    try {
+      setLoading(true);
+      const status =
+        selectedFilter === "All"
+          ? "all"
+          : selectedFilter === "Given"
+          ? "given"
+          : "not_given";
+      const url = `${API_BASE_URL}/api/medications/schedule?date=${selectedDayKey}&status=${status}&search=${search}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      setMeds(data);
+    } catch (err) {
+      console.log("Error loading meds:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleReminder = (id: string) => {
-    setMeds((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, hasReminder: !m.hasReminder } : m
-      )
-    );
-  };
-
-  const filteredMeds = meds
-    .filter((m) =>
-      m.patientName.toLowerCase().includes(search.toLowerCase())
-    )
-    .filter((m) => {
-      if (selectedFilter === "Given") return m.isGiven;
-      if (selectedFilter === "Not Given") return !m.isGiven;
-      return true;
-    });
+  useEffect(() => {
+    loadMeds();
+  }, [selectedDayKey, selectedFilter, search]);
 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.panel}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-
           <View style={styles.headerRow}>
-            <Pressable onPress={() => router.replace("/(tabs)")}>
+            <Pressable onPress={() => router.replace("/home")}>
               <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
             </Pressable>
 
@@ -243,84 +203,141 @@ export default function MedicationScreen() {
           </View>
 
           <View style={styles.mealList}>
-            {filteredMeds.map((med) => (
-              <View key={med.id} style={styles.mealCard}>
+            {loading && (
+              <ActivityIndicator
+                size="large"
+                color={theme.colors.primary}
+                style={{ marginTop: 40 }}
+              />
+            )}
 
-                <View style={styles.mealTopRow}>
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarInitial}>
-                      {med.patientName.charAt(0)}
+            {!loading && meds.length === 0 && (
+              <Text style={{ textAlign: "center", marginTop: 30 }}>
+                No medications found for this date.
+              </Text>
+            )}
+
+            {!loading &&
+              meds.map((med) => (
+                <View key={med.MedicationId} style={styles.mealCard}>
+                  <View style={styles.mealTopRow}>
+                    <View style={styles.avatarCircle}>
+                      <Text style={styles.avatarInitial}>{med.PatientName.charAt(0)}</Text>
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={styles.mealPatientName} numberOfLines={1}>
+                          {med.PatientName} ({med.PatientAge ?? "?"}yo)
+                        </Text>
+
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color={theme.colors.mutedText}
+                        />
+                      </View>
+
+                      <View style={styles.mealMetaRow}>
+                        <MaterialCommunityIcons
+                          name="hospital-building"
+                          size={14}
+                          color={theme.colors.mutedText}
+                        />
+                        <Text style={styles.mealMetaText}>WARD – {med.Ward}</Text>
+
+                        <Text style={{ marginHorizontal: 6, color: theme.colors.mutedText }}>
+                          |
+                        </Text>
+
+                        <MaterialCommunityIcons
+                          name="bed-outline"
+                          size={14}
+                          color={theme.colors.mutedText}
+                        />
+                        <Text style={styles.mealMetaText}>{med.Bed}</Text>
+                      </View>
+
+                      <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={14}
+                          color={theme.colors.mutedText}
+                        />
+                        <Text style={styles.mealMetaText}>{med.DaysInWard}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.topSeparator} />
+
+                  <View style={styles.medInfoBlock}>
+                    <View style={styles.medNameRow}>
+                      <MaterialCommunityIcons
+                        name="pill"
+                        size={18}
+                        color={theme.colors.primaryDark}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={styles.medName}>{med.ProductName}</Text>
+                    </View>
+                    <Text style={styles.doseText}>
+                      {med.Quantity} {med.QuantityUnit} • {med.FrequencyAmount}{" "}
+                      {med.FrequencyUnit}
                     </Text>
                   </View>
 
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={styles.mealPatientName} numberOfLines={1}>
-                        {med.patientName} ({med.age}yo)
+                  <View style={styles.mealNotes}>
+                    <Text style={styles.mealNotesText}>
+                      - Instructions: {med.InstructionPatient ?? "None"}
+                    </Text>
+                    <Text style={styles.mealNotesText}>
+                      - End Date: {med.EndDate ? med.EndDate.toString().slice(0, 10) : "n/a"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.mealBottomRow}>
+                    <Pressable style={styles.addReminderWrapper}>
+                      <Ionicons
+                        name={med.HasReminder ? "notifications" : "notifications-outline"}
+                        size={18}
+                        color={theme.colors.primaryDark}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text
+                        style={[
+                          styles.addReminderText,
+                          med.HasReminder && styles.addReminderTextActive,
+                        ]}
+                      >
+                        {med.HasReminder ? "Remove reminder" : "Add reminder"}
                       </Text>
+                    </Pressable>
 
-                      <Ionicons name="chevron-forward" size={20} color={theme.colors.mutedText} />
-                    </View>
-
-                    <View style={styles.mealMetaRow}>
-                      <MaterialCommunityIcons name="hospital-building" size={14} color={theme.colors.mutedText} />
-                      <Text style={styles.mealMetaText}>WARD – {med.ward}</Text>
-
-                      <Text style={{ marginHorizontal: 6, color: theme.colors.mutedText }}>|</Text>
-
-                      <MaterialCommunityIcons name="bed-outline" size={14} color={theme.colors.mutedText} />
-                      <Text style={styles.mealMetaText}>{med.room}</Text>
-                    </View>
-
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-                      <Ionicons name="calendar-outline" size={14} color={theme.colors.mutedText} />
-                      <Text style={styles.mealMetaText}>{med.daysAdmitted}</Text>
-                    </View>
+                    <Pressable
+                      style={[
+                        styles.checkButton,
+                        med.Status === "given" && styles.checkButtonActive,
+                      ]}
+                    >
+                      {med.Status === "given" && (
+                        <Ionicons
+                          name="checkmark"
+                          size={18}
+                          color={theme.colors.primaryDark}
+                        />
+                      )}
+                    </Pressable>
                   </View>
                 </View>
-
-                <View style={styles.topSeparator} />
-
-                <View style={styles.medInfoBlock}>
-                  <View style={styles.medNameRow}>
-                    <MaterialCommunityIcons name="pill" size={18} color={theme.colors.primaryDark} style={{ marginRight: 6 }} />
-                    <Text style={styles.medName}>{med.medName}</Text>
-                  </View>
-                  <Text style={styles.doseText}>{med.doseText}</Text>
-                </View>
-
-                <View style={styles.mealNotes}>
-                  <Text style={styles.mealNotesText}>- Instructions: {med.instructions}</Text>
-                  <Text style={styles.mealNotesText}>- End Date: {med.endDate}</Text>
-                </View>
-
-                <View style={styles.mealBottomRow}>
-                  <Pressable style={styles.addReminderWrapper} onPress={() => toggleReminder(med.id)}>
-                    <Ionicons
-                      name={med.hasReminder ? "notifications" : "notifications-outline"}
-                      size={18}
-                      color={theme.colors.primaryDark}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text style={[styles.addReminderText, med.hasReminder && styles.addReminderTextActive]}>
-                      {med.hasReminder ? "Remove reminder" : "Add reminder"}
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={[styles.checkButton, med.isGiven && styles.checkButtonActive]}
-                    onPress={() => toggleGiven(med.id)}
-                  >
-                    {med.isGiven && (
-                      <Ionicons name="checkmark" size={18} color={theme.colors.primaryDark} />
-                    )}
-                  </Pressable>
-                </View>
-
-              </View>
-            ))}
+              ))}
           </View>
-
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -484,10 +501,6 @@ const styles = StyleSheet.create({
   mealMetaText: {
     fontSize: theme.font.sm - 2,
     color: theme.colors.mutedText,
-  },
-  mealMetaIcon: {
-    marginLeft: 4,
-    marginRight: 2,
   },
   topSeparator: {
     height: 1,
