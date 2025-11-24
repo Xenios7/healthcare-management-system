@@ -1,38 +1,41 @@
 using System.Text;
 using EHRNurse.Api.Services;
-using EHRNurse.Api.Interfaces;
+using EHRNurse.Api.Interfaces; // Ensure IShiftService is visible (might need adjusting based on where you put the Interface)
 using EHRNurse.Data.Interfaces;
 using EHRNurse.Data.Models;
 using EHRNurse.Data.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql; // Added this for the Console.WriteLine part
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add DbContext (PostgreSQL)
+// 1. Add DbContext (PostgreSQL)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options
         .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
         .UseSnakeCaseNamingConvention()
 );
-// JWT options
+
+// 2. JWT options
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 
-// DI
+// 3. Dependency Injection (Register your Services here!)
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-// Program.cs, right after builder created:
-var conn = builder.Configuration.GetConnectionString("DefaultConnection");
-Console.WriteLine($"Using connection: {new Npgsql.NpgsqlConnectionStringBuilder(conn) { Password = "" }}");
-
-
-
 builder.Services.AddScoped<IBarcodeService, BarcodeService>();
 
+// ---> THIS WAS MISSING! ADD THIS LINE: <---
+builder.Services.AddScoped<IShiftService, ShiftService>(); 
 
-// AuthN
+
+// Debug: Check connection string (Optional, safe to keep for dev)
+var conn = builder.Configuration.GetConnectionString("DefaultConnection");
+Console.WriteLine($"Using connection: {new NpgsqlConnectionStringBuilder(conn) { Password = "***" }.ConnectionString}");
+
+// 4. Authentication
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
@@ -50,7 +53,7 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// CORS (open for RN dev)
+// 5. CORS (Allow everyone for now)
 builder.Services.AddCors(policy =>
 {
     policy.AddDefaultPolicy(p => p
@@ -65,14 +68,19 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// 6. Pipeline
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseCors();
+
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Fix for Docker/Container binding
 app.Urls.Add("http://0.0.0.0:5164");
 
 app.MapControllers();
+
 app.Run();

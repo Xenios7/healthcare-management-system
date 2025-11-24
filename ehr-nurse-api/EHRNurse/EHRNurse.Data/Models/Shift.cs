@@ -7,20 +7,18 @@ namespace EHRNurse.Data.Models
     public class Shift
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
-        // Links the shift to the specific Nurse/Doctor
         [Required]
-        public string UserId { get; set; }
+        public int UserId { get; set; }  // CHANGED TO INT
 
-        // The exact time they started
+        [Required]
         public DateTime ClockInTime { get; set; }
 
-        // The time they finished (Nullable, because it's empty while they are working)
         public DateTime? ClockOutTime { get; set; }
 
-        // Helper to quickly check if they are currently working
-        [NotMapped] 
+        [NotMapped]
         public bool IsActive => ClockOutTime == null;
     }
 }

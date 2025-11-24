@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using EHRNurse.Data.Models;
-using Microsoft.EntityFrameworkCore;
+using EHRNurse.Api.Dto;
+using EHRNurse.Api.Services;
 
 namespace EHRNurse.Api.Controllers
 {
@@ -8,74 +8,43 @@ namespace EHRNurse.Api.Controllers
     [ApiController]
     public class ShiftController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IShiftService _shiftService;
 
-        public ShiftController(AppDbContext context)
+        public ShiftController(IShiftService shiftService)
         {
-            _context = context;
+            _shiftService = shiftService;
         }
 
-        // 1. CLOCK IN
-        // POST: api/Shift/clock-in
         [HttpPost("clock-in")]
-        public async Task<IActionResult> ClockIn([FromBody] string userId)
+        public async Task<IActionResult> ClockIn([FromBody] ShiftRequestDto request)
         {
-            // Check if the user is already working (has a shift with NO end time)
-            var activeShift = await _context.Shifts
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.ClockOutTime == null);
+            if (request.UserId <= 0)
+                return BadRequest(new { message = "Invalid UserId." });
 
-            if (activeShift != null)
-            {
-                return BadRequest(new { message = "User is already clocked in!" });
-            }
+            var result = await _shiftService.ClockInAsync(request.UserId);
 
-            // ERROR WAS HERE: Ensure we use '='
-            var newShift = new Shift
-            {
-                UserId = userId,
-                ClockInTime = DateTime.UtcNow 
-            };
+            if (result == null)
+                return BadRequest(new { message = $"User {request.UserId} is already clocked in!" });
 
-            _context.Shifts.Add(newShift);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Clocked in successfully", startTime = newShift.ClockInTime });
+            return Ok(result);
         }
 
-        // 2. CLOCK OUT
-        // POST: api/Shift/clock-out
         [HttpPost("clock-out")]
-        public async Task<IActionResult> ClockOut([FromBody] string userId)
+        public async Task<IActionResult> ClockOut([FromBody] ShiftRequestDto request)
         {
-            var activeShift = await _context.Shifts
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.ClockOutTime == null);
+            var result = await _shiftService.ClockOutAsync(request.UserId);
 
-            if (activeShift == null)
-            {
+            if (result == null)
                 return BadRequest(new { message = "User is not currently clocked in." });
-            }
 
-            activeShift.ClockOutTime = DateTime.UtcNow;
-            
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Clocked out successfully", endTime = activeShift.ClockOutTime });
+            return Ok(result);
         }
 
-        // 3. GET STATUS
-        // GET: api/Shift/status/{userId}
         [HttpGet("status/{userId}")]
-        public async Task<IActionResult> GetStatus(string userId)
+        public async Task<IActionResult> GetStatus(int userId)
         {
-            var activeShift = await _context.Shifts
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.ClockOutTime == null);
-
-            if (activeShift != null)
-            {
-                return Ok(new { status = "On Shift", startTime = activeShift.ClockInTime });
-            }
-            
-            return Ok(new { status = "Off Shift" });
+            var result = await _shiftService.GetStatusAsync(userId);
+            return Ok(result);
         }
     }
 }

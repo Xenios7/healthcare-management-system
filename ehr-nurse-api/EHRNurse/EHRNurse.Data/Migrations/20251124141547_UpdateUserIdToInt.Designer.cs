@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EHRNurse.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251119110333_AddShiftTable")]
-    partial class AddShiftTable
+    [Migration("20251124141547_UpdateUserIdToInt")]
+    partial class UpdateUserIdToInt
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -9674,9 +9674,8 @@ namespace EHRNurse.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("clock_out_time");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text")
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
