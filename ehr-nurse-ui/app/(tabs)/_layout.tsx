@@ -8,7 +8,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false,
+        tabBarStyle: { display: 'none' },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.mutedText,
         tabBarStyle: {
@@ -23,58 +23,12 @@ export default function TabsLayout() {
         },
       }}
     >
+      <Tabs.Screen name="index" />
       <Tabs.Screen
-        name="index"
-        options={{
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="home" size={26} color={color} />
-          ),
-        }}
+        name="qrcode"
+        options={{ href: null }}
       />
-
-      <Tabs.Screen
-        name="patients"
-        options={{
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons
-              name="clipboard-text-outline"
-              size={26}
-              color={color}
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="medication"
-        options={{
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="pill" size={26} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="nutrition"
-        options={{
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons
-              name="silverware-fork-knife"
-              size={26}
-              color={color}
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="calendar-outline" size={26} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="Appointments" />
     </Tabs>
   );
 }
