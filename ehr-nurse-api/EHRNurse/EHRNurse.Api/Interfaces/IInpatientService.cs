@@ -6,5 +6,8 @@ namespace EHRNurse.Api.Interfaces
     {
         Task<IEnumerable<InpatientListItemDto>> GetAllInpatientsAsync();
         Task<IEnumerable<MedicationListItemDto>> GetMedicationsForPatientAsync(int patientId);
+        
+        // NEW LINE:
+        Task<IEnumerable<NutritionListItemDto>> GetNutritionForPatientAsync(int patientId);
     }
 }
