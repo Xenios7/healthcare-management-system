@@ -31,7 +31,7 @@ import {
 } from '../utils/appointmentsApi';
 import { theme } from '../../styles/theme';
 
-const FILTERS: AppointmentFilter[] = ['upcoming', 'completed', 'completed'];
+const FILTERS: AppointmentFilter[] = ['all', 'upcoming', 'completed'];
 
 const PAST_DAYS = 30;
 const FUTURE_DAYS = 120;
@@ -144,15 +144,35 @@ export default function AppointmentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // TODO: wire this from your auth / user context
-  const patientId = undefined as number | undefined; 
+  const [days] = useState<Date[]>(() => buildCalendarDays());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const selectedScale = useSharedValue(1);
+
+  const patientId = undefined as number | undefined;
 
   const loadAppointments = useCallback(async () => {
     try {
       setError(null);
       setLoading(true);
-      const data = await getAppointments(filter, patientId);
-      setAppointments(data);
+
+      const apiFilter: AppointmentFilter =
+        filter === 'upcoming' ? 'all' : filter;
+
+      const data = await getAppointments(apiFilter, patientId);
+
+      if (filter === 'upcoming') {
+        setAppointments(data.filter(isUpcomingLike));
+      } else if (filter === 'completed') {
+        setAppointments(
+          data.filter(a => isSameOrAfterToday(new Date(a.startDate))),
+        );
+      } else {
+        setAppointments(data);
+      }
     } catch (e: any) {
       setError(e.message ?? 'Failed to load appointments');
     } finally {
@@ -163,6 +183,12 @@ export default function AppointmentsScreen() {
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
+
+  useEffect(() => {
+    if (!selectedDate && days.length > 0) {
+      setSelectedDate(days[PAST_DAYS]);
+    }
+  }, [selectedDate, days]);
 
   const onRefresh = useCallback(async () => {
     try {
@@ -194,55 +220,132 @@ export default function AppointmentsScreen() {
     }
   };
 
+  const handleSearchPress = () => {
+    setIsSearching(true);
+  };
+
+  const cancelSearch = () => {
+    setIsSearching(false);
+    setSearchQuery('');
+  };
+
+  const onSelectDate = (d: Date) => {
+    setSelectedDate(d);
+    selectedScale.value = 0.8;
+    selectedScale.value = withTiming(1, { duration: 160 });
+  };
+
   const renderFilterButtons = () => (
-    <View style={styles.filterRow}>
-      {FILTERS.map(f => (
-        <TouchableOpacity
-          key={f}
-          style={[
-            styles.filterButton,
-            filter === f && styles.filterButtonActive,
-          ]}
-          onPress={() => setFilter(f)}
-        >
-          <Text
-            style={[
-              styles.filterButtonText,
-              filter === f && styles.filterButtonTextActive,
-            ]}
+    <View style={styles.segmentContainer}>
+      {FILTERS.map(f => {
+        const active = filter === f;
+        const label = getFilterLabel(f);
+
+        return (
+          <TouchableOpacity
+            key={f}
+            style={[styles.segmentItem, active && styles.segmentItemActive]}
+            onPress={() => {
+              setFilter(f);
+              setIsSearching(false);
+              setSearchQuery('');
+            }}
           >
-            {f.toUpperCase()}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            <Text
+              style={[styles.segmentText, active && styles.segmentTextActive]}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const renderDayStrip = () => (
+    <View style={styles.dayStripContainer}>
+      <FlatList
+        horizontal
+        data={days}
+        keyExtractor={item => item.toISOString()}
+        showsHorizontalScrollIndicator={false}
+        initialScrollIndex={PAST_DAYS}
+        getItemLayout={(_, index) => ({
+          length: DAY_ITEM_WIDTH,
+          offset: DAY_ITEM_WIDTH * index,
+          index,
+        })}
+        renderItem={({ item: d }) => {
+          const active = selectedDate && isSameDay(d, selectedDate);
+          return (
+            <DayItemAnimated
+              date={d}
+              isActive={!!active}
+              onSelect={() => onSelectDate(d)}
+              selectedScale={selectedScale}
+            />
+          );
+        }}
+      />
     </View>
   );
 
   const renderItem = ({ item }: { item: AppointmentPatientDto }) => {
-    const date = new Date(item.startDate);
+    const dt = new Date(item.startDate);
+    const dateStr = dt.toLocaleDateString();
+    const timeStr = dt.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const rawTitle = item.title || '';
+    const baseTitle = rawTitle.split(':')[0];
+    const displayTitle = `${baseTitle}`;
+
+    const status = item.statusDisplay ?? 'Scheduled';
+
+    let statusColor = '#16A34A';
+    const statusLower = status.toLowerCase();
+
+    if (
+      statusLower.includes('did not attend') ||
+      statusLower.includes('did not')
+    ) {
+      statusColor = '#EF4444';
+    } else if (statusLower.includes('postponed')) {
+      statusColor = '#F59E0B';
+    }
 
     return (
       <View style={styles.card}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.date}>
-          {date.toLocaleDateString()} {date.toLocaleTimeString()}
-        </Text>
+        <Text style={styles.title}>{displayTitle}</Text>
+
+        <View style={styles.statusRow}>
+          <Text style={[styles.statusText, { color: statusColor }]}>
+            {status}
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Date</Text>
+          <Text style={styles.infoValue}>{dateStr}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Time</Text>
+          <Text style={styles.infoValue}>{timeStr}</Text>
+        </View>
+
         {item.comments ? (
           <Text style={styles.comments}>{item.comments}</Text>
         ) : null}
-        <Text style={styles.status}>
-          Status:{' '}
-          <Text style={styles.statusValue}>
-            {item.statusDisplay ?? 'Scheduled'}
-          </Text>
-        </Text>
 
         <View style={styles.actionsRow}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.completedButton]}
-            onPress={() => handleStatusChange(item.id, 'COMPLETED')}
+            style={[styles.actionButton, styles.dnaButton]}
+            onPress={() => handleStatusChange(item.id, 'DNA')}
           >
-            <Text style={styles.actionButtonText}>Completed</Text>
+            <Text style={styles.actionButtonText}>Did not attend</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -253,19 +356,84 @@ export default function AppointmentsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, styles.dnaButton]}
-            onPress={() => handleStatusChange(item.id, 'DNA')}
+            style={[styles.actionButton, styles.completedButton]}
+            onPress={() => handleStatusChange(item.id, 'COMPLETED')}
           >
-            <Text style={styles.actionButtonText}>Do not attempt</Text>
+            <Text style={styles.actionButtonText}>Completed</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   };
 
+  let appointmentsByDate: AppointmentPatientDto[] = [];
+
+  if (filter === 'all') {
+    appointmentsByDate = selectedDate
+      ? appointments.filter(a =>
+          isSameDay(new Date(a.startDate), selectedDate),
+        )
+      : [];
+  } else if (selectedDate && isSameOrAfterToday(selectedDate)) {
+    appointmentsByDate = appointments;
+  } else {
+    appointmentsByDate = [];
+  }
+
+  const visibleAppointments =
+    isSearching && searchQuery.trim().length > 0
+      ? appointmentsByDate.filter(a =>
+          (a.title || '')
+            .toLowerCase()
+            .includes(searchQuery.trim().toLowerCase()),
+        )
+      : appointmentsByDate;
+
+  const placeholderText = `Search ${getFilterLabel(
+    filter,
+  ).toLowerCase()} appointments`;
+
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Your Appointments</Text>
+          <Text style={styles.headerSubtitle}>
+            Last synced: {new Date().toLocaleDateString()}{' '}
+            {new Date().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </View>
+
+        <View style={styles.headerIcons}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={handleSearchPress}
+          >
+            <Icon name="search" size={18} color="#111827" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {renderFilterButtons()}
+
+      {isSearching && (
+        <View style={styles.searchRow}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={placeholderText}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          <TouchableOpacity style={styles.searchCancel} onPress={cancelSearch}>
+            <Text style={styles.searchCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {renderDayStrip()}
 
       {loading && !refreshing ? (
         <View style={styles.center}>
@@ -273,11 +441,13 @@ export default function AppointmentsScreen() {
         </View>
       ) : (
         <FlatList
-          data={appointments}
+          data={visibleAppointments}
           keyExtractor={item => item.id.toString()}
           renderItem={renderItem}
           contentContainerStyle={
-            appointments.length === 0 ? styles.emptyContainer : undefined
+            visibleAppointments.length === 0
+              ? styles.emptyContainer
+              : styles.listContent
           }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -295,81 +465,293 @@ export default function AppointmentsScreen() {
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
+
+      <View style={styles.bottomNav}>
+        <Link href="/home" asChild>
+          <TouchableOpacity style={styles.bottomItem}>
+            <Ionicons
+              name="home"
+              size={26}
+              color={theme.colors.mutedText}
+            />
+          </TouchableOpacity>
+        </Link>
+
+        <TouchableOpacity style={styles.bottomItem}>
+          <MaterialCommunityIcons
+            name="clipboard-text-outline"
+            size={26}
+            color={theme.colors.mutedText}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.bottomItem}>
+          <MaterialCommunityIcons
+            name="pill"
+            size={26}
+            color={theme.colors.mutedText}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.bottomItem}>
+          <MaterialCommunityIcons
+            name="silverware-fork-knife"
+            size={26}
+            color={theme.colors.mutedText}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.bottomItem}>
+          <Ionicons
+            name="calendar-outline"
+            size={26}
+            color={theme.colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 40, paddingHorizontal: 12 },
+  container: {
+    flex: 1,
+    paddingTop: 24,
+    paddingHorizontal: 16,
+    backgroundColor: '#F4F6F8',
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  filterRow: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  filterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginHorizontal: 4,
-    borderRadius: 16,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#D1D5DB',
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  filterButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+
+  segmentContainer: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 24,
+    padding: 2,
+    marginBottom: 16,
   },
-  filterButtonText: { fontSize: 12, color: '#333' },
-  filterButtonTextActive: { color: 'white', fontWeight: '600' },
+  segmentItem: {
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  segmentItemActive: {
+    backgroundColor: '#0EAD9A',
+  },
+  segmentText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  segmentTextActive: {
+    color: '#FFFFFF',
+  },
+
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchCancel: {
+    marginLeft: 8,
+  },
+  searchCancelText: {
+    fontSize: 14,
+    color: '#0EAD9A',
+    fontWeight: '500',
+  },
+
+  dayStripContainer: {
+    marginBottom: 16,
+  },
+  dayItem: {
+    width: 70,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayItemActive: {
+    backgroundColor: '#0EAD9A',
+  },
+  dayName: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  dayNameActive: {
+    color: '#FFFFFF',
+  },
+  dayNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  dayNumberActive: {
+    color: '#FFFFFF',
+  },
+  monthName: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  monthNameActive: {
+    color: '#FFFFFF',
+  },
+
+  listContent: {
+    paddingBottom: 96,
+  },
 
   card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  title: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  date: { fontSize: 13, color: '#666', marginBottom: 4 },
-  comments: { fontSize: 13, color: '#444', marginBottom: 6 },
-  status: { fontSize: 13, color: '#555', marginBottom: 8 },
-  statusValue: { fontWeight: '600' },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: '#111827',
+  },
+
+  statusRow: {
+    marginBottom: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  infoValue: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '500',
+  },
+
+  comments: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6B7280',
+  },
 
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 12,
   },
   actionButton: {
     flex: 1,
     marginHorizontal: 3,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
     alignItems: 'center',
   },
-  actionButtonText: { fontSize: 12, color: 'white', fontWeight: '600' },
-  completedButton: { backgroundColor: '#34C759' },
-  postponedButton: { backgroundColor: '#FF9500' },
-  dnaButton: { backgroundColor: '#FF3B30' },
+  actionButtonText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  completedButton: {
+    backgroundColor: '#10B981',
+  },
+  postponedButton: {
+    backgroundColor: '#F59E0B',
+  },
+  dnaButton: {
+    backgroundColor: '#EF4444',
+  },
 
   emptyContainer: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyText: { color: '#666' },
+  emptyText: {
+    color: '#6B7280',
+  },
 
   errorBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#ff3b30',
+    backgroundColor: '#EF4444',
     padding: 8,
   },
-  errorText: { color: 'white', textAlign: 'center', fontSize: 12 },
+  errorText: {
+    color: 'white',
+    textAlign: 'center',
+    fontSize: 12,
+  },
+
+  bottomNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    marginTop: 8,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.card,
+  },
+  bottomItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
 });
