@@ -107,9 +107,9 @@ namespace EHRNurse.Api.Controllers
                     MealName = f.Description ?? "",
                     Instructions = f.Description,
 
-                    PortionSize = f.PortionSize,
+                    PortionSize = f.PortionSize?.ToString() ?? "",
                     PortionEatenPercentage = f.PortionEatenPercentage,
-
+                    
                     Status = derivedStatus,
                     HasReminder = false
                 };

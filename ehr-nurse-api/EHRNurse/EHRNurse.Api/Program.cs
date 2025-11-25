@@ -16,23 +16,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
         .UseSnakeCaseNamingConvention()
 );
+
 // JWT options
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 
-// DI
+// DI - Dependency Injection Registration
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-// Program.cs, right after builder created:
+builder.Services.AddScoped<IInpatientService, InpatientService>();  // ✅ Keep this one
+builder.Services.AddScoped<IBarcodeService, BarcodeService>();
+
+// Connection string logging
 var conn = builder.Configuration.GetConnectionString("DefaultConnection");
 Console.WriteLine($"Using connection: {new Npgsql.NpgsqlConnectionStringBuilder(conn) { Password = "" }}");
 
-
-
-builder.Services.AddScoped<IBarcodeService, BarcodeService>();
-
-
-// AuthN
+// Authentication
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
@@ -62,6 +61,8 @@ builder.Services.AddCors(policy =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ❌ REMOVED DUPLICATE LINE HERE
 
 var app = builder.Build();
 

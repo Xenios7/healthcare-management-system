@@ -119,6 +119,31 @@ namespace EHRNurse.Api.Services
             return await Task.FromResult(mockMeds);
         }
 
+        // PHASE 3: Nutrition Per Patient
+        public async Task<IEnumerable<NutritionListItemDto>> GetNutritionForPatientAsync(int patientId)
+        {
+            var mockNutrition = new List<NutritionListItemDto>();
+
+            if (patientId == 101) // John Smith
+            {
+                mockNutrition.Add(new NutritionListItemDto
+                {
+                    FoodId = 701,
+                    PatientId = 101,
+                    MealType = "Breakfast",
+                    MealName = "Oatmeal with fruit",
+                    Instructions = "Soft consistency",
+                    PortionSize = "Full",
+                    PortionEatenPercentage = 100,
+                    Status = "Given",
+                    HasReminder = false
+                });
+            }
+            // Add more mock data if you want
+
+            return await Task.FromResult(mockNutrition);
+        }
+
         // --- THIS WAS MISSING ---
         // Helper for DateOnly
         private int CalculateAge(DateOnly dob)

@@ -14,7 +14,7 @@ public class NutritionListItemDto
     public string MealName { get; set; } = "";      // Description becomes name
     public string? Instructions { get; set; }
 
-    public int? PortionSize { get; set; }
+    public string? PortionSize { get; set; }
     public int? PortionEatenPercentage { get; set; }
 
     public string Status { get; set; } = "not_given"; // same as medication
