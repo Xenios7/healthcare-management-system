@@ -59,6 +59,8 @@ export default function Login() {
     }).start();
   };
 
+  router.replace("/home");
+
   useEffect(() => {
     (async () => {
       // ❗ Αν δεν είναι ANDROID, δεν ασχολούμαστε καν με fingerprint
