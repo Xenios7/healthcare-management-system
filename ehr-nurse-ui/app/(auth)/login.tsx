@@ -59,7 +59,6 @@ export default function Login() {
     }).start();
   };
 
-  router.replace("/home");
 
   useEffect(() => {
     (async () => {
