@@ -1,22 +1,18 @@
-public class NutritionListItemDto
+namespace EHRNurse.Api.Dto
 {
-    public int FoodId { get; set; }
-    public int PatientId { get; set; }
-
-    public string PatientName { get; set; } = null!;
-    public int? PatientAge { get; set; }
-
-    public string Ward { get; set; } = "";
-    public string Bed { get; set; } = "";
-    public int DaysInWard { get; set; }
-
-    public string MealType { get; set; } = "";     // Breakfast / Lunch / Dinner / Snack
-    public string MealName { get; set; } = "";      // Description becomes name
-    public string? Instructions { get; set; }
-
-    public string? PortionSize { get; set; }
-    public int? PortionEatenPercentage { get; set; }
-
-    public string Status { get; set; } = "not_given"; // same as medication
-    public bool HasReminder { get; set; } = false;
+    public class NutritionListItemDto
+    {
+        public int NutritionId { get; set; }
+        public int PatientId { get; set; }
+        
+        // C# 11+ required keyword
+        public required string MealType { get; set; } // e.g., "Lunch", "Dinner", "Snack"
+        public required string Description { get; set; } // e.g., "Grilled Chicken with Rice"
+        
+        public string? DietCode { get; set; } // e.g., "Diabetic", "Low Sodium", "NPO"
+        public string? InstructionKitchen { get; set; } // e.g., "No nuts", "Pureed"
+        
+        public required string Status { get; set; } // "Served", "Pending", "NPO"
+        public bool HasAllergyWarning { get; set; }
+    }
 }
