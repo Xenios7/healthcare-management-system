@@ -155,20 +155,22 @@ export default function HomeScreen() {
             Quick Actions
           </Text>
 
-          <View style={styles.quickActionsRow}>
-            <Link href="/qrcode" asChild>
-              <Pressable style={styles.quickActionCard}>
-                <View style={styles.quickIconWrapper}>
-                  <Ionicons
-                    name="qr-code-outline"
-                    size={32}
-                    color={theme.colors.primaryDark}
-                  />
-                </View>
-                <Text style={styles.quickActionText}>Scan patient</Text>
-              </Pressable>
-            </Link>
-          </View>
+         <View style={styles.quickActionsRow}>
+  <Pressable
+    style={styles.quickActionCard}
+    onPress={() => router.push("/qrcode")}
+  >
+    <View style={styles.quickIconWrapper}>
+      <Ionicons
+        name="qr-code-outline"
+        size={32}
+        color={theme.colors.primaryDark}
+      />
+    </View>
+    <Text style={styles.quickActionText}>Scan patient</Text>
+  </Pressable>
+</View>
+
 
           <Text
             style={[styles.sectionTitle, { marginTop: theme.spacing.lg }]}

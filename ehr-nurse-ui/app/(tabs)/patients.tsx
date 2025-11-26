@@ -1,123 +1,212 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TextInput,
-  Pressable,
+  TouchableOpacity,
   SafeAreaView,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import { Link, router } from "expo-router";
 import { theme } from "../../styles/theme";
-import { router } from "expo-router";
+import { Platform } from "react-native";
+
+const API_BASE_URL = Platform.select({
+  web: "http://localhost:5164",
+  default: "http://172.22.240.1:5164", // προσαρμόζεις αν χρειάζεται
+});
+
+type PatientCard = {
+  id: number;
+  name: string;
+  age: number | null;
+  ward: string;
+  bed: string;
+  daysInWard: number;
+};
 
 export default function PatientsScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [lastSynced, setLastSynced] = useState("");
-
-  const patients = [
-    { id: 1, name: "John Smith", age: 66, ward: "WARD – 1", room: "101", days: 88 },
-    { id: 2, name: "Maria Georgiou", age: 74, ward: "WARD – 2", room: "210", days: 23 },
-    { id: 3, name: "Test Patient2", age: 66, ward: "WARD – 1", room: "101", days: 88 },
-    { id: 4, name: "Test Patient2", age: 66, ward: "WARD – 1", room: "101", days: 88 },
-    { id: 5, name: "Test Patient2", age: 66, ward: "WARD – 1", room: "101", days: 88 },
-  ];
+  const [patients, setPatients] = useState<PatientCard[]>([]);
 
   useEffect(() => {
     const now = new Date();
-    setLastSynced(`${now.toLocaleDateString()} , ${now.toLocaleTimeString()}`);
+    setLastSynced(
+      `${now.toLocaleDateString()} , ${now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`
+    );
   }, []);
 
-  const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  // αν έχεις API, φέρε τους ασθενείς από εκεί
+  useEffect(() => {
+    const loadPatients = async () => {
+      try {
+        const url = `${API_BASE_URL}/api/Patients`; // προσαρμόζεις endpoint
+        const res = await fetch(url);
+        const data = (await res.json()) as PatientCard[];
+        setPatients(data);
+      } catch (e) {
+        // fallback σε mock data αν αποτύχει
+        setPatients([
+          {
+            id: 1,
+            name: "Test Patient2",
+            age: 66,
+            ward: "WARD - 1",
+            bed: "101",
+            daysInWard: 88,
+          },
+          {
+            id: 2,
+            name: "John Smith",
+            age: 74,
+            ward: "WARD - 2",
+            bed: "210",
+            daysInWard: 23,
+          },
+          {
+            id: 3,
+            name: "Maria Georgiou",
+            age: 80,
+            ward: "WARD - 3",
+            bed: "305",
+            daysInWard: 5,
+          },
+        ]);
+      }
+    };
+
+    loadPatients();
+  }, []);
+
+  const filteredPatients = useMemo(
+    () =>
+      patients.filter((p) =>
+        p.name.toLowerCase().includes(search.trim().toLowerCase())
+      ),
+    [patients, search]
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.panel}>
-        <View style={styles.headerRow}>
-          <Pressable onPress={() => router.push("/(tabs)")}>
-            <Ionicons name="chevron-back" size={26} color={theme.colors.text} />
-          </Pressable>
+    <SafeAreaView style={styles.safeContainer}>
+      <View style={styles.inner}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              style={{ marginRight: 8 }}
+              onPress={() => router.replace("/home")}
+            >
+              <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
 
-          {!searchOpen && (
-            <Text style={styles.headerTitle}>In Patients</Text>
-          )}
-
-          {!searchOpen && (
-            <View style={styles.headerIcons}>
-              <Pressable onPress={() => setSearchOpen(true)}>
-                <Ionicons name="search" size={22} color={theme.colors.text} />
-              </Pressable>
+            <View>
+              <Text style={styles.headerTitle}>In Patients</Text>
+              <Text style={styles.headerSubtitle}>Last synced: {lastSynced}</Text>
             </View>
-          )}
+          </View>
 
-          {searchOpen && (
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={theme.colors.mutedText} />
+          <View style={styles.headerIcons}>
+  {!searchOpen && (
+    <TouchableOpacity
+      style={styles.headerIcon}
+      onPress={() => setSearchOpen(true)}
+    >
+      <FeatherIcon name="search" size={18} color={theme.colors.text} />
+    </TouchableOpacity>
+  )}
 
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search patients..."
-                placeholderTextColor={theme.colors.mutedText}
-                value={search}
-                onChangeText={setSearch}
-                autoFocus
-              />
+  {/* QR code button */}
+  <TouchableOpacity
+    style={styles.headerIcon}
+    onPress={() => router.push("/qrcode")}
+  >
+    <MaterialCommunityIcons
+      name="qrcode-scan"
+      size={20}
+      color={theme.colors.text}
+    />
+  </TouchableOpacity>
+</View>
 
-              <Pressable
-                onPress={() => {
-                  setSearch("");
-                  setSearchOpen(false);
-                }}
-              >
-                <Ionicons name="close" size={22} color={theme.colors.mutedText} />
-              </Pressable>
-            </View>
-          )}
         </View>
 
-        <Text style={styles.lastSynced}>Last synced: {lastSynced}</Text>
+        {/* SEARCH BAR */}
+        {searchOpen && (
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search patients..."
+              value={search}
+              onChangeText={setSearch}
+            />
+            <TouchableOpacity
+              style={styles.searchCancel}
+              onPress={() => {
+                setSearch("");
+                setSearchOpen(false);
+              }}
+            >
+              <Text style={styles.searchCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* LIST */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 110 }}
+          showsVerticalScrollIndicator={false}
+        >
           {filteredPatients.map((p) => (
-            <Pressable key={p.id} style={styles.card}>
+            <TouchableOpacity key={p.id} style={styles.card}>
+              {/* Avatar */}
               <View style={styles.avatarCircle}>
-                <Text style={styles.avatarLetter}>{p.name.charAt(0)}</Text>
+                <Text style={styles.avatarLetter}>
+                  {p.name.charAt(0).toUpperCase()}
+                </Text>
               </View>
 
+              {/* Info */}
               <View style={styles.infoArea}>
                 <Text style={styles.nameText}>
-                  {p.name} ({p.age}yo)
+                  {p.name} ({p.age ?? "?"}yo)
                 </Text>
 
                 <View style={styles.row}>
                   <MaterialCommunityIcons
                     name="hospital-building"
-                    size={18}
+                    size={16}
                     color={theme.colors.mutedText}
                   />
-                  <Text style={styles.infoText}>{p.ward}</Text>
+                  <Text style={styles.infoText}>
+                    {p.ward} | {p.bed}
+                  </Text>
 
                   <Text style={styles.separator}>|</Text>
 
                   <MaterialCommunityIcons
-                    name="bed"
-                    size={18}
+                    name="account-arrow-right-outline"
+                    size={16}
                     color={theme.colors.mutedText}
                   />
-                  <Text style={styles.infoText}>{p.room}</Text>
+                  <Text style={styles.infoText}>1</Text>
                 </View>
 
                 <View style={styles.row}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={18}
+                  <MaterialCommunityIcons
+                    name="calendar-blank"
+                    size={16}
                     color={theme.colors.mutedText}
                   />
-                  <Text style={styles.infoText}>{p.days} days</Text>
+                  <Text style={styles.infoText}>{p.daysInWard} days</Text>
                 </View>
               </View>
 
@@ -126,120 +215,191 @@ export default function PatientsScreen() {
                 size={26}
                 color={theme.colors.mutedText}
               />
-            </Pressable>
+            </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* BOTTOM NAV – clipboard ενεργό */}
+        <View style={styles.bottomNav}>
+          <Link href="/home" asChild>
+            <TouchableOpacity style={styles.bottomItem}>
+              <Ionicons name="home" size={26} color={theme.colors.mutedText} />
+            </TouchableOpacity>
+          </Link>
+
+          <TouchableOpacity style={styles.bottomItem}>
+            <MaterialCommunityIcons
+              name="clipboard-text-outline"
+              size={26}
+              color={theme.colors.primary}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomItem}>
+            <MaterialCommunityIcons
+              name="pill"
+              size={26}
+              color={theme.colors.mutedText}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomItem}>
+            <MaterialCommunityIcons
+              name="silverware-fork-knife"
+              size={26}
+              color={theme.colors.mutedText}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomItem}>
+            <Ionicons
+              name="calendar-outline"
+              size={26}
+              color={theme.colors.mutedText}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  safeContainer: {
     flex: 1,
-    backgroundColor: theme.colors.card,
+    backgroundColor: "#F4F6F8",
   },
-  panel: {
+  inner: {
     flex: 1,
-    backgroundColor: theme.colors.card,
-    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 24,
+    paddingHorizontal: 16,
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
   },
-  headerRow: {
+
+  /* HEADER */
+  header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-
   headerTitle: {
-    fontSize: theme.font.xl,
+    fontSize: 22,
     fontWeight: "700",
     color: theme.colors.text,
-    marginLeft: theme.spacing.sm,
-    flex: 1,
   },
-
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 11,
+    color: theme.colors.mutedText,
+  },
   headerIcons: {
     flexDirection: "row",
     alignItems: "center",
   },
-
-  searchBar: {
-    flexDirection: "row",
-    flex: 1,
-    backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radii.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
+  headerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginLeft: theme.spacing.md,
+    borderColor: "#D1D5DB",
+    marginLeft: 8,
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
   },
 
+  /* SEARCH */
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   searchInput: {
     flex: 1,
-    marginLeft: 6,
-    color: theme.colors.text,
-    fontSize: theme.font.md,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  searchCancel: {
+    marginLeft: 8,
+  },
+  searchCancelText: {
+    fontSize: 14,
+    color: theme.colors.primary,
+    fontWeight: "500",
   },
 
-  lastSynced: {
-    marginTop: 8,
-    marginBottom: theme.spacing.md,
-    color: theme.colors.mutedText,
-    fontSize: theme.font.sm,
-  },
-
+  /* CARD */
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.colors.card,
-    padding: theme.spacing.md,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: theme.spacing.md,
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-
   avatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#e5e7eb",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#8CD24E",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: theme.spacing.md,
+    marginRight: 12,
   },
-
   avatarLetter: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "700",
-    color: theme.colors.text,
+    color: "#FFFFFF",
   },
-
   infoArea: {
     flex: 1,
   },
-
   nameText: {
     fontWeight: "700",
-    fontSize: theme.font.md,
-    marginBottom: 3,
+    fontSize: 14,
+    marginBottom: 4,
+    color: theme.colors.text,
   },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 2,
   },
-
   infoText: {
     marginLeft: 6,
     color: theme.colors.mutedText,
-    fontSize: theme.font.sm,
+    fontSize: 12,
   },
-
   separator: {
     marginHorizontal: 6,
     color: theme.colors.mutedText,
+  },
+
+  bottomNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    marginTop: 8,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.card,
+  },
+  bottomItem: {
+    flex: 1,
+    alignItems: "center",
   },
 });

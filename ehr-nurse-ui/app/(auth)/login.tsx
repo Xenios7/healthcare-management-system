@@ -24,7 +24,7 @@ import { biometricPrompt, canUseFingerprint } from '../utils/biometricAuth';
 
 const API_BASE_URL = Platform.select({
   web: 'http://localhost:5164',
-  default: 'http://192.168.27.134:5164',
+  default: 'http://172.20.10.2:5164',
 });
 
 const PASSWORD_LOGIN_FLAG_KEY = 'has_completed_password_login';
@@ -58,9 +58,6 @@ export default function Login() {
       useNativeDriver: true,
     }).start();
   };
-
-  router.replace("/home");
-
   useEffect(() => {
     (async () => {
       // ❗ Αν δεν είναι ANDROID, δεν ασχολούμαστε καν με fingerprint
