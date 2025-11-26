@@ -9,7 +9,7 @@ import {
   TextInput,
   RefreshControl,
   useWindowDimensions,
- Platform } from "react-native";
+  } from "react-native";
 
 import Animated, {
   useSharedValue,

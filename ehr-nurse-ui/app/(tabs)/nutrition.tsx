@@ -9,7 +9,6 @@ import {
   TextInput,
   RefreshControl,
   useWindowDimensions,
-  Platform,
 } from "react-native";
 
 import Animated, {
@@ -24,29 +23,11 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {router } from "expo-router";
 import { theme } from "../../styles/theme";
 
-const API_BASE_URL = Platform.select({
-  web: "http://localhost:5164",
-  default: "http://172.25.152.57:5164",
-});
-
-type FilterType = "all" | "not_given" | "given";
-
-type MealCard = {
-  FoodId: number;
-  PatientId: number;
-  PatientName: string;
-  PatientAge: number | null;
-  Ward: string;
-  Bed: string;
-  DaysInWard: number;
-  MealType: string;
-  MealName: string;
-  Instructions: string | null;
-  PortionSize: number | null;
-  PortionEatenPercentage: number | null;
-  Status: string;
-  HasReminder: boolean;
-};
+import {
+  getNutritionSchedule,
+  NutritionFilter,
+  NutritionListItemDto,
+} from "../utils/nutritionApi";
 
 const PAST_DAYS = 30;
 const FUTURE_DAYS = 120;
@@ -78,11 +59,8 @@ function isSameDay(a: Date, b: Date) {
   );
 }
 
-function formatDateKey(d: Date) {
-  return d.toISOString().substring(0, 10);
-}
 
-function getFilterLabel(f: FilterType) {
+function getFilterLabel(f: NutritionFilter) {
   if (f === "all") return "All";
   if (f === "not_given") return "Not Given";
   if (f === "given") return "Given";
@@ -137,8 +115,9 @@ export default function NutritionScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const dayWidth = Math.min(82, (windowWidth - 32) / 4.5);
 
-  const [filter, setFilter] = useState<FilterType>("all");
-  const [meals, setMeals] = useState<MealCard[]>([]);
+const [filter, setFilter] = useState<NutritionFilter>("all");
+const [meals, setMeals] = useState<NutritionListItemDto[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -153,36 +132,32 @@ export default function NutritionScreen() {
   const [lastSynced] = useState(new Date());
   const [localChecks, setLocalChecks] = useState<Record<number, boolean>>({});
 
-  const loadMeals = useCallback(
-    async (isRefresh = false) => {
-      if (!selectedDate) return;
+const loadMeals = useCallback(
+  async (isRefresh = false) => {
+    if (!selectedDate) return;
 
-      try {
-        setError(null);
-        if (!isRefresh) setLoading(true);
+    try {
+      setError(null);
+      if (!isRefresh) setLoading(true);
 
-        const statusParam = filter;
-        const dateKey = formatDateKey(selectedDate);
+      const data = await getNutritionSchedule(
+        filter,
+        selectedDate,
+        searchQuery
+      );
 
-        const url =
-          `${API_BASE_URL}/api/Nutrition/schedule` +
-          `?status=${encodeURIComponent(statusParam)}` +
-          `&date=${encodeURIComponent(dateKey)}` +
-          `&search=${encodeURIComponent(searchQuery)}`;
+      setMeals(data);
+    } catch (e: any) {
+      console.log("Error loading meals", e);
+      setError(e?.message ?? "Failed to load meals");
+      setMeals([]);
+    } finally {
+      if (!isRefresh) setLoading(false);
+    }
+  },
+  [filter, selectedDate, searchQuery]
+);
 
-        const res = await fetch(url);
-        const data = (await res.json()) as MealCard[];
-        setMeals(data);
-      } catch (e: any) {
-        console.log("Error loading meals", e);
-        setError(e?.message ?? "Failed to load meals");
-        setMeals([]);
-      } finally {
-        if (!isRefresh) setLoading(false);
-      }
-    },
-    [filter, selectedDate, searchQuery]
-  );
 
   useEffect(() => {
     if (!selectedDate && days.length > 0) {
@@ -220,7 +195,7 @@ export default function NutritionScreen() {
 
   const renderFilterButtons = () => (
     <View style={styles.segmentContainer}>
-      {(["all", "not_given", "given"] as FilterType[]).map((f) => {
+      {(["all", "not_given", "given"] as NutritionFilter[]).map((f) => {
         const active = filter === f;
         const label = getFilterLabel(f);
 
@@ -274,13 +249,13 @@ export default function NutritionScreen() {
 );
 
 
-  const renderMealItem = ({ item: meal }: { item: MealCard }) => {
+  const renderMealItem = ({ item: meal }: { item: NutritionListItemDto }) => {
     return (
       <View style={styles.mealCard}>
         {/* patient header */}
         <View style={styles.mealTopRow}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitial}>{meal.PatientName.charAt(0)}</Text>
+            <Text style={styles.avatarInitial}>{meal.patientName.charAt(0)}</Text>
           </View>
 
           <View style={{ flex: 1 }}>
@@ -292,7 +267,7 @@ export default function NutritionScreen() {
               }}
             >
               <Text style={styles.mealPatientName} numberOfLines={1}>
-                {meal.PatientName} ({meal.PatientAge ?? "?"}yo)
+                {meal.patientName} ({meal.patientAge ?? "?"}yo)
               </Text>
 
               <Ionicons
@@ -308,7 +283,7 @@ export default function NutritionScreen() {
                 size={14}
                 color={theme.colors.mutedText}
               />
-              <Text style={styles.mealMetaText}>WARD – {meal.Ward}</Text>
+              <Text style={styles.mealMetaText}>WARD – {meal.ward}</Text>
 
               <Text style={{ marginHorizontal: 6, color: theme.colors.mutedText }}>
                 |
@@ -319,7 +294,7 @@ export default function NutritionScreen() {
                 size={14}
                 color={theme.colors.mutedText}
               />
-              <Text style={styles.mealMetaText}>{meal.Bed}</Text>
+              <Text style={styles.mealMetaText}>{meal.bed}</Text>
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
@@ -328,7 +303,7 @@ export default function NutritionScreen() {
                 size={14}
                 color={theme.colors.mutedText}
               />
-              <Text style={styles.mealMetaText}>{meal.DaysInWard} days</Text>
+              <Text style={styles.mealMetaText}>{meal.daysInWard} days</Text>
             </View>
           </View>
         </View>
@@ -344,15 +319,15 @@ export default function NutritionScreen() {
               color={theme.colors.primaryDark}
               style={{ marginRight: 6 }}
             />
-            <Text style={styles.medName}>{meal.MealName}</Text>
+            <Text style={styles.medName}>{meal.mealName}</Text>
           </View>
-          <Text style={styles.doseText}>{meal.MealType}</Text>
+          <Text style={styles.doseText}>{meal.mealType}</Text>
 
-          {meal.PortionSize !== null && (
+          {meal.portionSize !== null && (
             <Text style={styles.doseText}>
-              Portion: {meal.PortionSize}g
-              {meal.PortionEatenPercentage !== null
-                ? ` • Eaten: ${meal.PortionEatenPercentage}%`
+              Portion: {meal.portionSize}g
+              {meal.portionEatenPercentage !== null
+                ? ` • Eaten: ${meal.portionEatenPercentage}%`
                 : ""}
             </Text>
           )}
@@ -361,7 +336,7 @@ export default function NutritionScreen() {
         {/* notes */}
         <View style={styles.mealNotes}>
           <Text style={styles.mealNotesText}>
-            - Instructions: {meal.Instructions ?? "None"}
+            - Instructions: {meal.instructions ?? "None"}
           </Text>
         </View>
 
@@ -369,7 +344,7 @@ export default function NutritionScreen() {
         <View style={styles.mealBottomRow}>
           <TouchableOpacity style={styles.addReminderWrapper}>
             <Ionicons
-              name={meal.HasReminder ? "notifications" : "notifications-outline"}
+              name={meal.hasReminder ? "notifications" : "notifications-outline"}
               size={18}
               color={theme.colors.primaryDark}
               style={{ marginRight: 4 }}
@@ -377,10 +352,10 @@ export default function NutritionScreen() {
             <Text
               style={[
                 styles.addReminderText,
-                meal.HasReminder && styles.addReminderTextActive,
+                meal.hasReminder && styles.addReminderTextActive,
               ]}
             >
-              {meal.HasReminder ? "Remove reminder" : "Add reminder"}
+              {meal.hasReminder ? "Remove reminder" : "Add reminder"}
             </Text>
           </TouchableOpacity>
 
@@ -388,15 +363,15 @@ export default function NutritionScreen() {
             onPress={() =>
               setLocalChecks((prev) => ({
                 ...prev,
-                [meal.FoodId]: !prev[meal.FoodId],
+                [meal.foodId]: !prev[meal.foodId],
               }))
             }
             style={[
               styles.checkButton,
-              localChecks[meal.FoodId] && styles.checkButtonActive,
+              localChecks[meal.foodId] && styles.checkButtonActive,
             ]}
           >
-            {localChecks[meal.FoodId] && (
+            {localChecks[meal.foodId] && (
               <Ionicons
                 name="checkmark"
                 size={18}
@@ -466,7 +441,7 @@ export default function NutritionScreen() {
         ) : (
           <FlatList
             data={visibleMeals}
-            keyExtractor={(item) => item.FoodId.toString()}
+            keyExtractor={(item) => item.foodId.toString()}
             renderItem={renderMealItem}
             contentContainerStyle={
               visibleMeals.length === 0

@@ -27,7 +27,6 @@ import {
   AppointmentPatientDto,
   AppointmentFilter,
 } from '../utils/appointmentsApi';
-import { theme } from '../../styles/theme';
 
 const FILTERS: AppointmentFilter[] = ['all', 'upcoming', 'completed'];
 
