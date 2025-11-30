@@ -1,7 +1,11 @@
-import React, { useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, Alert, Pressable } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { router } from "expo-router";
+import {
+  CameraView,
+  useCameraPermissions,
+  BarcodeScanningResult,
+} from "expo-camera";
+import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { API_BASE_URL } from "./Api_Base_Url";
@@ -9,7 +13,23 @@ import { API_BASE_URL } from "./Api_Base_Url";
 export default function QRCodeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const insets = useSafeAreaInsets();
+
+  const [scannerActive, setScannerActive] = useState(true);
   const hasHandledScan = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[QR] Screen focused -> enable scanner");
+      setScannerActive(true);
+      hasHandledScan.current = false;
+
+      return () => {
+        console.log("[QR] Screen unfocused -> reset flags");
+        setScannerActive(false);
+        hasHandledScan.current = false;
+      };
+    }, [])
+  );
 
   if (!permission) return <View />;
 
@@ -24,15 +44,25 @@ export default function QRCodeScreen() {
     );
   }
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (hasHandledScan.current) return;
-    hasHandledScan.current = true;
+  const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
+    console.log("[QR] onBarcodeScanned fired with data:", data);
 
-    
+    if (!scannerActive) {
+      console.log("[QR] Ignored scan because scannerActive = false");
+      return;
+    }
+    if (hasHandledScan.current) {
+      console.log("[QR] Ignored scan because hasHandledScan = true");
+      return;
+    }
+
+    hasHandledScan.current = true;
+    setScannerActive(false);
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     try {
-      // Calling backend
+      console.log("[QR] Calling backend:", `${API_BASE_URL}/api/barcode/scan`);
       const response = await fetch(`${API_BASE_URL}/api/barcode/scan`, {
         method: "POST",
         headers: {
@@ -41,64 +71,54 @@ export default function QRCodeScreen() {
         body: JSON.stringify({ barcodeData: data }),
       });
 
-      const result = await response.json();
-      
+      console.log("[QR] Response status:", response.status);
+      let result: any = {};
+      try {
+        result = await response.json();
+      } catch (e) {
+        console.log("[QR] Failed to parse JSON:", e);
+      }
+      console.log("[QR] Response body:", result);
 
       if (response.ok && result.success) {
-        
         if (result.type === "patient" && result.data) {
           const p = result.data;
-          
           const name =
             (p.firstName || p.first_name || "") +
             " " +
             (p.lastName || p.last_name || "");
           const id = p.id ?? p.Id;
 
-          Alert.alert(
-            "Patient found",
-            `Name: ${name}\nID: ${id}`,
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  router.replace("/home");
-                },
+          Alert.alert("Patient found", `Name: ${name}\nID: ${id}`, [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/home");
               },
-            ]
-          );
+            },
+          ]);
         } else if (result.type === "medication" && result.data) {
           const m = result.data;
           const medName = m.name || m.drugName || "Medication";
-          Alert.alert(
-            "Medication found",
-            `Medication: ${medName}`,
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  router.replace("/home");
-                },
+          Alert.alert("Medication found", `Medication: ${medName}`, [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/home");
               },
-            ]
-          );
+            },
+          ]);
         } else {
-         
-          Alert.alert(
-            "Scan result",
-            result.message || "Success",
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  router.replace("/home");
-                },
+          Alert.alert("Scan result", result.message || "Success", [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/home");
               },
-            ]
-          );
+            },
+          ]);
         }
       } else {
-       
         Alert.alert(
           "Scan failed",
           result.message || "Could not process barcode",
@@ -106,8 +126,9 @@ export default function QRCodeScreen() {
             {
               text: "Try again",
               onPress: () => {
-                
+                console.log("[QR] User pressed Try again");
                 hasHandledScan.current = false;
+                setScannerActive(true);
               },
             },
             {
@@ -128,7 +149,9 @@ export default function QRCodeScreen() {
           {
             text: "Try again",
             onPress: () => {
+              console.log("[QR] User pressed Try again after network error");
               hasHandledScan.current = false;
+              setScannerActive(true);
             },
           },
         ]
@@ -154,7 +177,7 @@ export default function QRCodeScreen() {
       <CameraView
         style={{ flex: 1 }}
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-        onBarcodeScanned={handleBarCodeScanned}
+        onBarcodeScanned={scannerActive ? handleBarCodeScanned : undefined}
       />
     </SafeAreaView>
   );

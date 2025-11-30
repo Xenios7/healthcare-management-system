@@ -6,13 +6,13 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
- } from "react-native";
+} from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import FeatherIcon from "react-native-vector-icons/Feather";
-import {  router } from "expo-router";
+import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../../styles/theme";
 import { API_BASE_URL } from "./Api_Base_Url";
-
 
 type PatientCard = {
   id: number;
@@ -42,12 +42,11 @@ export default function PatientsScreen() {
   useEffect(() => {
     const loadPatients = async () => {
       try {
-        const url = `${API_BASE_URL}/api/Patients`; // προσαρμόζεις endpoint
+        const url = `${API_BASE_URL}/api/Patients`;
         const res = await fetch(url);
         const data = (await res.json()) as PatientCard[];
         setPatients(data);
       } catch (e) {
-        // fallback σε mock data αν αποτύχει
         setPatients([
           {
             id: 1,
@@ -89,50 +88,55 @@ export default function PatientsScreen() {
   );
 
   return (
-    <View style={styles.safeContainer}>
+    <SafeAreaView
+      style={styles.safeContainer}
+      edges={["top", "left", "right"]}
+    >
       <View style={styles.inner}>
-        {/* HEADER */}
         <View style={styles.header}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TouchableOpacity
               style={{ marginRight: 8 }}
               onPress={() => router.replace("/home")}
             >
-              <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+              <Ionicons
+                name="chevron-back"
+                size={24}
+                color={theme.colors.text}
+              />
             </TouchableOpacity>
 
             <View>
               <Text style={styles.headerTitle}>In Patients</Text>
-              <Text style={styles.headerSubtitle}>Last synced: {lastSynced}</Text>
+              <Text style={styles.headerSubtitle}>
+                Last synced: {lastSynced}
+              </Text>
             </View>
           </View>
 
           <View style={styles.headerIcons}>
-  {!searchOpen && (
-    <TouchableOpacity
-      style={styles.headerIcon}
-      onPress={() => setSearchOpen(true)}
-    >
-      <FeatherIcon name="search" size={18} color={theme.colors.text} />
-    </TouchableOpacity>
-  )}
+            {!searchOpen && (
+              <TouchableOpacity
+                style={styles.headerIcon}
+                onPress={() => setSearchOpen(true)}
+              >
+                <FeatherIcon name="search" size={18} color={theme.colors.text} />
+              </TouchableOpacity>
+            )}
 
-  {/* QR code button */}
-  <TouchableOpacity
-    style={styles.headerIcon}
-    onPress={() => router.push("/qrcode")}
-  >
-    <MaterialCommunityIcons
-      name="qrcode-scan"
-      size={20}
-      color={theme.colors.text}
-    />
-  </TouchableOpacity>
-</View>
-
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={() => router.push("/qrcode")}
+            >
+              <MaterialCommunityIcons
+                name="qrcode-scan"
+                size={20}
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* SEARCH BAR */}
         {searchOpen && (
           <View style={styles.searchRow}>
             <TextInput
@@ -153,7 +157,6 @@ export default function PatientsScreen() {
           </View>
         )}
 
-        {/* LIST */}
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 110 }}
@@ -161,14 +164,12 @@ export default function PatientsScreen() {
         >
           {filteredPatients.map((p) => (
             <TouchableOpacity key={p.id} style={styles.card}>
-              {/* Avatar */}
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarLetter}>
                   {p.name.charAt(0).toUpperCase()}
                 </Text>
               </View>
 
-              {/* Info */}
               <View style={styles.infoArea}>
                 <Text style={styles.nameText}>
                   {p.name} ({p.age ?? "?"}yo)
@@ -213,7 +214,7 @@ export default function PatientsScreen() {
           ))}
         </ScrollView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -224,14 +225,13 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingHorizontal: 16,
     maxWidth: 600,
     alignSelf: "center",
     width: "100%",
   },
 
-  /* HEADER */
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -264,7 +264,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
 
-  /* SEARCH */
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -289,7 +288,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  /* CARD */
   card: {
     flexDirection: "row",
     alignItems: "center",

@@ -20,7 +20,8 @@ import Animated, {
 
 import FeatherIcon from "react-native-vector-icons/Feather";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import {router } from "expo-router";
+import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../../styles/theme";
 
 import {
@@ -58,7 +59,6 @@ function isSameDay(a: Date, b: Date) {
     a.getDate() === b.getDate()
   );
 }
-
 
 function getFilterLabel(f: NutritionFilter) {
   if (f === "all") return "All";
@@ -115,8 +115,8 @@ export default function NutritionScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const dayWidth = Math.min(82, (windowWidth - 32) / 4.5);
 
-const [filter, setFilter] = useState<NutritionFilter>("all");
-const [meals, setMeals] = useState<NutritionListItemDto[]>([]);
+  const [filter, setFilter] = useState<NutritionFilter>("all");
+  const [meals, setMeals] = useState<NutritionListItemDto[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -132,32 +132,31 @@ const [meals, setMeals] = useState<NutritionListItemDto[]>([]);
   const [lastSynced] = useState(new Date());
   const [localChecks, setLocalChecks] = useState<Record<number, boolean>>({});
 
-const loadMeals = useCallback(
-  async (isRefresh = false) => {
-    if (!selectedDate) return;
+  const loadMeals = useCallback(
+    async (isRefresh = false) => {
+      if (!selectedDate) return;
 
-    try {
-      setError(null);
-      if (!isRefresh) setLoading(true);
+      try {
+        setError(null);
+        if (!isRefresh) setLoading(true);
 
-      const data = await getNutritionSchedule(
-        filter,
-        selectedDate,
-        searchQuery
-      );
+        const data = await getNutritionSchedule(
+          filter,
+          selectedDate,
+          searchQuery
+        );
 
-      setMeals(data);
-    } catch (e: any) {
-      console.log("Error loading meals", e);
-      setError(e?.message ?? "Failed to load meals");
-      setMeals([]);
-    } finally {
-      if (!isRefresh) setLoading(false);
-    }
-  },
-  [filter, selectedDate, searchQuery]
-);
-
+        setMeals(data);
+      } catch (e: any) {
+        console.log("Error loading meals", e);
+        setError(e?.message ?? "Failed to load meals");
+        setMeals([]);
+      } finally {
+        if (!isRefresh) setLoading(false);
+      }
+    },
+    [filter, selectedDate, searchQuery]
+  );
 
   useEffect(() => {
     if (!selectedDate && days.length > 0) {
@@ -209,7 +208,9 @@ const loadMeals = useCallback(
               setSearchQuery("");
             }}
           >
-            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+            <Text
+              style={[styles.segmentText, active && styles.segmentTextActive]}
+            >
               {label}
             </Text>
           </TouchableOpacity>
@@ -219,43 +220,43 @@ const loadMeals = useCallback(
   );
 
   const renderDayStrip = () => (
-  <View style={styles.dayStripContainer}>
-    <FlatList
-      horizontal
-      data={days}
-      keyExtractor={(item) => item.toISOString()}
-      showsHorizontalScrollIndicator={false}
-      initialScrollIndex={PAST_DAYS}
-      getItemLayout={(_, index) => ({
-        length: dayWidth,
-        offset: dayWidth * index,
-        index,
-      })}
-      contentContainerStyle={{ paddingRight: 12 }}
-      renderItem={({ item: d }) => {
-        const active = selectedDate && isSameDay(d, selectedDate);
-        return (
-          <DayItemAnimated
-            date={d}
-            isActive={!!active}
-            onSelect={() => onSelectDate(d)}
-            selectedScale={selectedScale}
-            width={dayWidth}
-          />
-        );
-      }}
-    />
-  </View>
-);
-
+    <View style={styles.dayStripContainer}>
+      <FlatList
+        horizontal
+        data={days}
+        keyExtractor={(item) => item.toISOString()}
+        showsHorizontalScrollIndicator={false}
+        initialScrollIndex={PAST_DAYS}
+        getItemLayout={(_, index) => ({
+          length: dayWidth,
+          offset: dayWidth * index,
+          index,
+        })}
+        contentContainerStyle={{ paddingRight: 12 }}
+        renderItem={({ item: d }) => {
+          const active = selectedDate && isSameDay(d, selectedDate);
+          return (
+            <DayItemAnimated
+              date={d}
+              isActive={!!active}
+              onSelect={() => onSelectDate(d)}
+              selectedScale={selectedScale}
+              width={dayWidth}
+            />
+          );
+        }}
+      />
+    </View>
+  );
 
   const renderMealItem = ({ item: meal }: { item: NutritionListItemDto }) => {
     return (
       <View style={styles.mealCard}>
-        {/* patient header */}
         <View style={styles.mealTopRow}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitial}>{meal.patientName.charAt(0)}</Text>
+            <Text style={styles.avatarInitial}>
+              {meal.patientName.charAt(0)}
+            </Text>
           </View>
 
           <View style={{ flex: 1 }}>
@@ -285,7 +286,9 @@ const loadMeals = useCallback(
               />
               <Text style={styles.mealMetaText}>WARD – {meal.ward}</Text>
 
-              <Text style={{ marginHorizontal: 6, color: theme.colors.mutedText }}>
+              <Text
+                style={{ marginHorizontal: 6, color: theme.colors.mutedText }}
+              >
                 |
               </Text>
 
@@ -297,7 +300,9 @@ const loadMeals = useCallback(
               <Text style={styles.mealMetaText}>{meal.bed}</Text>
             </View>
 
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}
+            >
               <Ionicons
                 name="calendar-outline"
                 size={14}
@@ -310,7 +315,6 @@ const loadMeals = useCallback(
 
         <View style={styles.topSeparator} />
 
-        {/* meal info */}
         <View style={styles.medInfoBlock}>
           <View style={styles.medNameRow}>
             <MaterialCommunityIcons
@@ -333,14 +337,12 @@ const loadMeals = useCallback(
           )}
         </View>
 
-        {/* notes */}
         <View style={styles.mealNotes}>
           <Text style={styles.mealNotesText}>
             - Instructions: {meal.instructions ?? "None"}
           </Text>
         </View>
 
-        {/* bottom row */}
         <View style={styles.mealBottomRow}>
           <TouchableOpacity style={styles.addReminderWrapper}>
             <Ionicons
@@ -388,16 +390,22 @@ const loadMeals = useCallback(
   const visibleMeals = meals;
 
   return (
-    <View style={styles.safeContainer}>
+    <SafeAreaView
+      style={styles.safeContainer}
+      edges={["top", "left", "right"]}
+    >
       <View style={styles.inner}>
-        {/* HEADER με ίδιο styling και back -> home */}
         <View style={styles.header}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TouchableOpacity
               style={{ marginRight: 8 }}
               onPress={() => router.replace("/home")}
             >
-              <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+              <Ionicons
+                name="chevron-back"
+                size={22}
+                color={theme.colors.text}
+              />
             </TouchableOpacity>
 
             <View>
@@ -410,7 +418,10 @@ const loadMeals = useCallback(
           </View>
 
           <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.headerIcon} onPress={handleSearchPress}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={handleSearchPress}
+            >
               <FeatherIcon name="search" size={18} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
@@ -426,7 +437,10 @@ const loadMeals = useCallback(
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            <TouchableOpacity style={styles.searchCancel} onPress={cancelSearch}>
+            <TouchableOpacity
+              style={styles.searchCancel}
+              onPress={cancelSearch}
+            >
               <Text style={styles.searchCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -453,7 +467,9 @@ const loadMeals = useCallback(
             }
             ListEmptyComponent={
               !loading ? (
-                <Text style={styles.emptyText}>No meals found for this date.</Text>
+                <Text style={styles.emptyText}>
+                  No meals found for this date.
+                </Text>
               ) : null
             }
           />
@@ -465,7 +481,7 @@ const loadMeals = useCallback(
           </View>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -476,7 +492,7 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingHorizontal: 16,
     maxWidth: 600,
     alignSelf: "center",

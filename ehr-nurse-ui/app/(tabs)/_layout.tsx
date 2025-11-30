@@ -1,19 +1,23 @@
-// app/(tabs)/_layout.tsx
 import React from "react";
 import { Tabs } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../../styles/theme";
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
+  const BASE_TAB_HEIGHT = 55;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          height: 68,
+          height: BASE_TAB_HEIGHT + insets.bottom,
           paddingTop: 8,
-          paddingBottom: 12,
+          paddingBottom: Math.max(insets.bottom, 12),
           borderTopWidth: 1,
           borderTopColor: theme.colors.border,
           backgroundColor: theme.colors.card,
@@ -22,7 +26,6 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.colors.mutedText,
       }}
     >
-      {/* not shown as a tab (used only for redirects) */}
       <Tabs.Screen
         name="index"
         options={{
@@ -30,7 +33,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* QR screen is not a tab either */}
       <Tabs.Screen
         name="qrcode"
         options={{

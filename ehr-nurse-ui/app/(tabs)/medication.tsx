@@ -9,7 +9,7 @@ import {
   TextInput,
   RefreshControl,
   useWindowDimensions,
-  } from "react-native";
+} from "react-native";
 
 import Animated, {
   useSharedValue,
@@ -21,15 +21,13 @@ import Animated, {
 import FeatherIcon from "react-native-vector-icons/Feather";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../../styles/theme";
 import {
   getMedicationSchedule,
   MedicationFilter,
   MedicationListItemDto,
 } from "../utils/medicationsApi";
-
-
-
 
 const PAST_DAYS = 30;
 const FUTURE_DAYS = 120;
@@ -60,6 +58,7 @@ function isSameDay(a: Date, b: Date) {
     a.getDate() === b.getDate()
   );
 }
+
 function getFilterLabel(f: MedicationFilter) {
   if (f === "all") return "All";
   if (f === "not_given") return "Not Given";
@@ -113,7 +112,7 @@ const DayItemAnimated: React.FC<DayItemAnimatedProps> = ({
 
 export default function MedicationScreen() {
   const [filter, setFilter] = useState<MedicationFilter>("all");
-const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
+  const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
   const { width: windowWidth } = useWindowDimensions();
   const dayWidth = Math.min(82, (windowWidth - 32) / 4.5);
   const [loading, setLoading] = useState(false);
@@ -129,32 +128,33 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
   const selectedScale = useSharedValue(1);
   const [lastSynced] = useState(new Date());
 
- const loadMeds = useCallback(
-  async (isRefresh = false) => {
-    if (!selectedDate) return;
+  const [localChecks, setLocalChecks] = useState<Record<number, boolean>>({});
 
-    try {
-      setError(null);
-      if (!isRefresh) setLoading(true);
+  const loadMeds = useCallback(
+    async (isRefresh = false) => {
+      if (!selectedDate) return;
 
-      const data = await getMedicationSchedule(
-        filter,
-        selectedDate,
-        searchQuery
-      );
+      try {
+        setError(null);
+        if (!isRefresh) setLoading(true);
 
-      setMeds(data);
-    } catch (e: any) {
-      console.log("Error loading meds", e);
-      setError(e?.message ?? "Failed to load medications");
-      setMeds([]);
-    } finally {
-      if (!isRefresh) setLoading(false);
-    }
-  },
-  [filter, selectedDate, searchQuery]
-);
+        const data = await getMedicationSchedule(
+          filter,
+          selectedDate,
+          searchQuery
+        );
 
+        setMeds(data);
+      } catch (e: any) {
+        console.log("Error loading meds", e);
+        setError(e?.message ?? "Failed to load medications");
+        setMeds([]);
+      } finally {
+        if (!isRefresh) setLoading(false);
+      }
+    },
+    [filter, selectedDate, searchQuery]
+  );
 
   useEffect(() => {
     if (!selectedDate && days.length > 0) {
@@ -192,6 +192,16 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
     selectedScale.value = withTiming(1, { duration: 160 });
   };
 
+  const toggleReminder = (medicationId: number) => {
+    setMeds((prev) =>
+      prev.map((m) =>
+        m.medicationId === medicationId
+          ? { ...m, hasReminder: !m.hasReminder }
+          : m
+      )
+    );
+  };
+
   const renderFilterButtons = () => (
     <View style={styles.segmentContainer}>
       {(["all", "not_given", "given"] as MedicationFilter[]).map((f) => {
@@ -208,7 +218,9 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
               setSearchQuery("");
             }}
           >
-            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+            <Text
+              style={[styles.segmentText, active && styles.segmentTextActive]}
+            >
               {label}
             </Text>
           </TouchableOpacity>
@@ -230,14 +242,6 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
           offset: dayWidth * index,
           index,
         })}
-        onScrollToIndexFailed={(info) => {
-          setTimeout(() => {
-            (info as any).flatListRef?.scrollToIndex({
-              index: info.index,
-              animated: true,
-            });
-          }, 50);
-        }}
         contentContainerStyle={{ paddingRight: 12 }}
         renderItem={({ item: d }) => {
           const active = selectedDate && isSameDay(d, selectedDate);
@@ -255,134 +259,154 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
     </View>
   );
 
- const renderMedItem = ({ item: med }: { item: MedicationListItemDto }) => {
-  return (
-    <View style={styles.medCard}>
-      <View style={styles.medTopRow}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitial}>
-            {med.patientName.charAt(0)}
-          </Text>
-        </View>
+  const renderMedItem = ({ item: med }: { item: MedicationListItemDto }) => {
+    const isChecked = !!localChecks[med.medicationId];
 
-        <View style={{ flex: 1 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Text style={styles.patientName} numberOfLines={1}>
-              {med.patientName} ({med.patientAge ?? "?"}yo)
+    return (
+      <View style={styles.medCard}>
+        <View style={styles.medTopRow}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarInitial}>
+              {med.patientName.charAt(0)}
             </Text>
-
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={theme.colors.mutedText}
-            />
           </View>
 
-          <View style={styles.patientMetaRow}>
-            <MaterialCommunityIcons
-              name="hospital-building"
-              size={14}
-              color={theme.colors.mutedText}
-            />
-            <Text style={styles.patientMetaText}>WARD – {med.ward}</Text>
-
-            <Text
+          <View style={{ flex: 1 }}>
+            <View
               style={{
-                marginHorizontal: 6,
-                color: theme.colors.mutedText,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              |
-            </Text>
+              <Text style={styles.patientName} numberOfLines={1}>
+                {med.patientName} ({med.patientAge ?? "?"}yo)
+              </Text>
 
-            <MaterialCommunityIcons
-              name="bed-outline"
-              size={14}
-              color={theme.colors.mutedText}
-            />
-            <Text style={styles.patientMetaText}>{med.bed}</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={theme.colors.mutedText}
+              />
+            </View>
+
+            <View style={styles.patientMetaRow}>
+              <MaterialCommunityIcons
+                name="hospital-building"
+                size={14}
+                color={theme.colors.mutedText}
+              />
+              <Text style={styles.patientMetaText}>WARD – {med.ward}</Text>
+
+              <Text
+                style={{
+                  marginHorizontal: 6,
+                  color: theme.colors.mutedText,
+                }}
+              >
+                |
+              </Text>
+
+              <MaterialCommunityIcons
+                name="bed-outline"
+                size={14}
+                color={theme.colors.mutedText}
+              />
+              <Text style={styles.patientMetaText}>{med.bed}</Text>
+            </View>
+
+            <View
+              style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={14}
+                color={theme.colors.mutedText}
+              />
+              <Text style={styles.patientMetaText}>
+                {med.daysInWard} days
+              </Text>
+            </View>
           </View>
+        </View>
 
-          <View
-            style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}
+        <View style={styles.topSeparator} />
+
+        <View style={styles.medInfoBlock}>
+          <View style={styles.medNameRow}>
+            <MaterialCommunityIcons
+              name="pill"
+              size={18}
+              color={theme.colors.primaryDark}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.medName}>{med.productName}</Text>
+          </View>
+          <Text style={styles.doseText}>
+            {med.quantity} {med.quantityUnit} • {med.frequencyAmount}{" "}
+            {med.frequencyUnit}
+          </Text>
+        </View>
+
+        <View style={styles.medNotes}>
+          <Text style={styles.medNotesText}>
+            - Instructions: {med.instructionPatient ?? "None"}
+          </Text>
+          <Text style={styles.medNotesText}>
+            - End Date: {med.endDate ? med.endDate.slice(0, 10) : "n/a"}
+          </Text>
+        </View>
+
+        <View style={styles.medBottomRow}>
+          <TouchableOpacity
+            style={styles.addReminderWrapper}
+            onPress={() => toggleReminder(med.medicationId)}
           >
             <Ionicons
-              name="calendar-outline"
-              size={14}
-              color={theme.colors.mutedText}
+              name={med.hasReminder ? "notifications" : "notifications-outline"}
+              size={18}
+              color={theme.colors.primaryDark}
+              style={{ marginRight: 4 }}
             />
-            <Text style={styles.patientMetaText}>
-              {med.daysInWard} days
+            <Text
+              style={[
+                styles.addReminderText,
+                med.hasReminder && styles.addReminderTextActive,
+              ]}
+            >
+              {med.hasReminder ? "Remove reminder" : "Add reminder"}
             </Text>
-          </View>
-        </View>
-      </View>
+          </TouchableOpacity>
 
-      <View style={styles.topSeparator} />
-
-      <View style={styles.medInfoBlock}>
-        <View style={styles.medNameRow}>
-          <MaterialCommunityIcons
-            name="pill"
-            size={18}
-            color={theme.colors.primaryDark}
-            style={{ marginRight: 6 }}
-          />
-          <Text style={styles.medName}>{med.productName}</Text>
-        </View>
-        <Text style={styles.doseText}>
-          {med.quantity} {med.quantityUnit} • {med.frequencyAmount}{" "}
-          {med.frequencyUnit}
-        </Text>
-      </View>
-
-      <View style={styles.medNotes}>
-        <Text style={styles.medNotesText}>
-          - Instructions: {med.instructionPatient ?? "None"}
-        </Text>
-        <Text style={styles.medNotesText}>
-          - End Date: {med.endDate
-            ? med.endDate.slice(0, 10)
-            : "n/a"}
-        </Text>
-      </View>
-
-      <View style={styles.medBottomRow}>
-        <TouchableOpacity style={styles.addReminderWrapper}>
-          <Ionicons
-            name={med.hasReminder ? "notifications" : "notifications-outline"}
-            size={18}
-            color={theme.colors.primaryDark}
-            style={{ marginRight: 4 }}
-          />
-          <Text
+          <TouchableOpacity
+            onPress={() =>
+              setLocalChecks((prev) => ({
+                ...prev,
+                [med.medicationId]: !prev[med.medicationId],
+              }))
+            }
             style={[
-              styles.addReminderText,
-              med.hasReminder && styles.addReminderTextActive,
+              styles.checkButton,
+              isChecked && styles.checkButtonActive,
             ]}
           >
-            {med.hasReminder ? "Remove reminder" : "Add reminder"}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.checkButton} />
+            {isChecked && (
+              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
-};
-
+    );
+  };
 
   const placeholderText = `Search ${getFilterLabel(filter).toLowerCase()} medications`;
   const visibleMeds = meds;
 
   return (
-    <View style={styles.safeContainer}>
+    <SafeAreaView
+      style={styles.safeContainer}
+      edges={["top", "left", "right"]}
+    >
       <View style={styles.inner}>
         <View style={styles.header}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -403,7 +427,10 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
           </View>
 
           <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.headerIcon} onPress={handleSearchPress}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={handleSearchPress}
+            >
               <FeatherIcon name="search" size={18} color="#111827" />
             </TouchableOpacity>
           </View>
@@ -434,7 +461,7 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
         ) : (
           <FlatList
             data={visibleMeds}
-             keyExtractor={(item) => item.medicationId.toString()} 
+            keyExtractor={(item) => item.medicationId.toString()}
             renderItem={renderMedItem}
             contentContainerStyle={
               visibleMeds.length === 0
@@ -460,7 +487,7 @@ const [meds, setMeds] = useState<MedicationListItemDto[]>([]);
           </View>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -471,7 +498,7 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingHorizontal: 16,
     maxWidth: 600,
     alignSelf: "center",
@@ -707,6 +734,7 @@ const styles = StyleSheet.create({
   addReminderTextActive: {
     fontWeight: "800",
   },
+
   checkButton: {
     width: 28,
     height: 28,
@@ -715,6 +743,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  checkButtonActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
 
   errorBar: {

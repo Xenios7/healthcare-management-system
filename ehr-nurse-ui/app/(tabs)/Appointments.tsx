@@ -18,10 +18,11 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import Icon from 'react-native-vector-icons/Feather';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   getAppointments,
-  markCompleted,  
+  markCompleted,
   markPostponed,
   markDoNotAttempt,
   AppointmentPatientDto,
@@ -165,7 +166,9 @@ export default function AppointmentsScreen() {
         setAppointments(data.filter(isUpcomingLike));
       } else if (filter === 'completed') {
         setAppointments(
-          data.filter(a => isSameOrAfterToday(new Date(a.startDate))),
+          data.filter(a =>
+            (a.statusDisplay || '').toLowerCase().includes('completed'),
+          ),
         );
       } else {
         setAppointments(data);
@@ -365,14 +368,18 @@ export default function AppointmentsScreen() {
 
   let appointmentsByDate: AppointmentPatientDto[] = [];
 
-  if (filter === 'all') {
-    appointmentsByDate = selectedDate
+  if (!selectedDate) {
+    appointmentsByDate = [];
+  } else if (filter === 'all' || filter === 'completed') {
+    appointmentsByDate = appointments.filter(a =>
+      isSameDay(new Date(a.startDate), selectedDate),
+    );
+  } else if (filter === 'upcoming') {
+    appointmentsByDate = isSameOrAfterToday(selectedDate)
       ? appointments.filter(a =>
           isSameDay(new Date(a.startDate), selectedDate),
         )
       : [];
-  } else if (selectedDate && isSameOrAfterToday(selectedDate)) {
-    appointmentsByDate = appointments;
   } else {
     appointmentsByDate = [];
   }
@@ -391,87 +398,95 @@ export default function AppointmentsScreen() {
   ).toLowerCase()} appointments`;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Your Appointments</Text>
-          <Text style={styles.headerSubtitle}>
-            Last synced: {new Date().toLocaleDateString()}{' '}
-            {new Date().toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
+    <SafeAreaView
+      style={styles.safeContainer}
+      edges={['top', 'left', 'right']}
+    >
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Your Appointments</Text>
+            <Text style={styles.headerSubtitle}>
+              Last synced: {new Date().toLocaleDateString()}{' '}
+              {new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+          </View>
+
+          <View style={styles.headerIcons}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={handleSearchPress}
+            >
+              <Icon name="search" size={18} color="#111827" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.headerIcons}>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={handleSearchPress}
-          >
-            <Icon name="search" size={18} color="#111827" />
-          </TouchableOpacity>
-        </View>
-      </View>
+        {renderFilterButtons()}
 
-      {renderFilterButtons()}
+        {isSearching && (
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={placeholderText}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            <TouchableOpacity style={styles.searchCancel} onPress={cancelSearch}>
+              <Text style={styles.searchCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {isSearching && (
-        <View style={styles.searchRow}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder={placeholderText}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+        {renderDayStrip()}
+
+        {loading && !refreshing ? (
+          <View style={styles.center}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <FlatList
+            data={visibleAppointments}
+            keyExtractor={item => item.id.toString()}
+            renderItem={renderItem}
+            contentContainerStyle={
+              visibleAppointments.length === 0
+                ? styles.emptyContainer
+                : styles.listContent
+            }
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              !loading ? (
+                <Text style={styles.emptyText}>No appointments found.</Text>
+              ) : null
+            }
           />
-          <TouchableOpacity style={styles.searchCancel} onPress={cancelSearch}>
-            <Text style={styles.searchCancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        )}
 
-      {renderDayStrip()}
-
-      {loading && !refreshing ? (
-        <View style={styles.center}>
-          <ActivityIndicator />
-        </View>
-      ) : (
-        <FlatList
-          data={visibleAppointments}
-          keyExtractor={item => item.id.toString()}
-          renderItem={renderItem}
-          contentContainerStyle={
-            visibleAppointments.length === 0
-              ? styles.emptyContainer
-              : styles.listContent
-          }
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          ListEmptyComponent={
-            !loading ? (
-              <Text style={styles.emptyText}>No appointments found.</Text>
-            ) : null
-          }
-        />
-      )}
-
-      {error && (
-        <View style={styles.errorBar}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-    </View>
+        {error && (
+          <View style={styles.errorBar}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeContainer: {
+    flex: 1,
+    backgroundColor: '#F4F6F8',
+  },
   container: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#F4F6F8',
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
