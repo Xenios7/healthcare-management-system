@@ -64,7 +64,8 @@ namespace EHRNurse.Api.Services
         // =========================================================
         // PHASE 2: Medication Per Patient 
         // =========================================================
-        public async Task<IEnumerable<MedicationListItemDto>> GetMedicationsForPatientAsync(int patientId, DateOnly date, string status)
+        public async Task<IEnumerable<MedicationListItemDto>> GetMedicationsForPatientAsync(
+            int patientId, DateOnly date, string status)
         {
             var filterStatus = status.ToLower().Trim();
             
@@ -128,69 +129,120 @@ namespace EHRNurse.Api.Services
         }
 
         // =========================================================
-        // PHASE 3: Nutrition Per Patient
+        // PHASE 3: Nutrition Per Patient 
         // =========================================================
-        public async Task<IEnumerable<NutritionListItemDto>> GetNutritionForPatientAsync(int patientId, DateOnly date, string status)
+        public async Task<IEnumerable<NutritionListItemDto>> GetNutritionForPatientAsync(
+            int patientId, DateOnly date, string status)
         {
             var filterStatus = status.ToLower().Trim();
+            var targetDate = date.ToDateTime(TimeOnly.MinValue);
+            var startOfDay = targetDate.Date;
+            var endOfDay = startOfDay.AddDays(1).AddTicks(-1);
             
-            var targetDate = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-
             var query = _context.FoodData
                 .AsNoTracking()
-                .Where(f => f.PatientId == patientId)
-                .Where(f => f.OnSetDateTime.Date == targetDate.Date)
-                .Include(f => f.Patient)
-                    .ThenInclude(p => p.EpisodeCares)
-                        .ThenInclude(e => e.AccommodationData)
-                            .ThenInclude(a => a.Bed)
-                                .ThenInclude(b => b.Room)
-                                    .ThenInclude(r => r.Ward);
+                .Where(fd => fd.PatientId == patientId)
+                .Where(fd => fd.OnSetDateTime >= startOfDay && fd.OnSetDateTime <= endOfDay);
 
-            var dbFood = await query.ToListAsync();
-
-            var dtoList = dbFood.Select(f =>
+            // Apply status filter
+            if (filterStatus == "served" || filterStatus == "completed" || filterStatus == "given")
             {
-                string currentStatus = f.IsSubmitted ? "Given" : "Not Given";
+                query = query.Where(fd => fd.IsSubmitted == true);
+            }
+            else if (filterStatus == "pending" || filterStatus == "not given" || filterStatus.Contains("not"))
+            {
+                query = query.Where(fd => fd.IsSubmitted == false);
+            }
+
+            var patient = await _context.Patients.FindAsync(patientId);
+            var foodRecords = await query.Include(fd => fd.FoodType).ToListAsync();
+            
+            if (!foodRecords.Any())
+            {
+                return new List<NutritionListItemDto>();
+            }
+
+            // Get accommodation by PatientId
+            var latestAccommodation = await _context.AccommodationData
+                .Include(a => a.Bed)
+                .Where(a => a.PatientId == patientId && a.IsActive)
+                .OrderByDescending(a => a.CreationDate)
+                .FirstOrDefaultAsync();
+            
+            // Get ward info from the bed
+            string ward = "Unknown";
+            string bed = "Unknown";
+            
+            if (latestAccommodation?.Bed != null)
+            {
+                bed = latestAccommodation.Bed.Name ?? "Unknown";
                 
-                var activeAcc = f.Patient.EpisodeCares
-                    .SelectMany(e => e.AccommodationData)
-                    .FirstOrDefault(a => a.IsActive);
+                // Get ward from bed's room
+                var bedWithRoom = await _context.AccommodationBeds
+                    .Include(b => b.Room)
+                        .ThenInclude(r => r.Ward)
+                    .FirstOrDefaultAsync(b => b.Id == latestAccommodation.BedId);
+                
+                ward = bedWithRoom?.Room?.Ward?.Name ?? "Unknown";
+            }
+                
+            var daysInWard = CalculateDaysInWard(latestAccommodation);
 
-                return new NutritionListItemDto
-                {
-                    FoodId = f.Id,
-                    PatientId = f.PatientId,
-                    PatientName = $"{f.Patient.FirstName} {f.Patient.LastName}",
-                    PatientAge = CalculateAge(f.Patient.DateOfBirth),
-                    Ward = activeAcc?.Bed?.Room?.Ward?.Name ?? "Unassigned",
-                    Bed = activeAcc?.Bed?.Name ?? "N/A",
-                    DaysInWard = 0,
+            var result = foodRecords.Select(fd => new NutritionListItemDto
+            {
+                FoodId = fd.Id,
+                PatientId = fd.PatientId,
+                PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                PatientAge = patient != null ? CalculateAge(patient.DateOfBirth) : null,
+                Ward = ward,
+                Bed = bed,
+                DaysInWard = daysInWard,
+                FoodType = fd.FoodType?.Display ?? "Unknown",
+                FoodTypeCode = fd.FoodType?.Code,
+                PortionEatenPercentage = fd.PortionEatenPercentage,
+                PortionSize = fd.PortionSize,
+                Description = fd.Description,
+                OnSetDateTime = DateTime.SpecifyKind(fd.OnSetDateTime, DateTimeKind.Utc),
+                Status = fd.IsSubmitted ? "Served" : "Pending",
+                HasAllergyWarning = fd.Description != null && 
+                                   (fd.Description.ToLower().Contains("allerg") ||
+                                    fd.Description.ToLower().Contains("warning"))
+            }).ToList();
 
-                    MealType = f.Description ?? "Meal",
-                    MealName = f.Description ?? "Standard Meal",
-                    Instructions = f.Description,
-                    PortionSize = f.PortionSize,
-                    PortionEatenPercentage = f.PortionEatenPercentage,
-                    Status = currentStatus,
-                    HasReminder = false
-                };
-            });
-
-            if (filterStatus == "given")
-                dtoList = dtoList.Where(x => x.Status == "Given");
-            else if (filterStatus.Contains("not"))
-                dtoList = dtoList.Where(x => x.Status == "Not Given");
-
-            return dtoList;
+            return result;
         }
 
-        private int CalculateAge(DateOnly dob)
+        // =========================================================
+        // PHASE 4: Schedule Views 
+        // =========================================================
+        public async Task<IEnumerable<MedicationListItemDto>> GetMedicationScheduleAsync(
+            DateOnly date, string status, string? search)
         {
-            var today = DateOnly.FromDateTime(DateTime.Now);
-            var age = today.Year - dob.Year;
-            if (dob > today.AddYears(-age)) age--;
+            return await Task.FromResult(new List<MedicationListItemDto>());
+        }
+
+        public async Task<IEnumerable<NutritionListItemDto>> GetNutritionScheduleAsync(
+            DateOnly date, string status, string? search)
+        {
+            return await Task.FromResult(new List<NutritionListItemDto>());
+        }
+
+        // =========================================================
+        // Helper Methods
+        // =========================================================
+        private int CalculateAge(DateOnly dateOfBirth)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var age = today.Year - dateOfBirth.Year;
+            if (dateOfBirth > today.AddYears(-age)) age--;
             return age;
+        }
+
+        private int CalculateDaysInWard(AccommodationDatum? accommodation)
+        {
+            if (accommodation?.CreationDate == null)
+                return 0;
+            return (DateTime.Now - accommodation.CreationDate).Days;
         }
     }
 }
