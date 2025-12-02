@@ -1,44 +1,136 @@
+using Microsoft.EntityFrameworkCore;
 using EHRNurse.Api.Dto;
 using EHRNurse.Api.Interfaces;
 using EHRNurse.Data.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace EHRNurse.Api.Services
 {
     public class InpatientService : IInpatientService
     {
-        private readonly AppDbContext _db;
+        private readonly AppDbContext _context;
 
-        public InpatientService(AppDbContext db)
+        public InpatientService(AppDbContext context)
         {
-            _db = db;
+            _context = context;
         }
 
+        // =========================================================
+        // PHASE 1: Main Inpatient List
+        // =========================================================
         public async Task<IEnumerable<InpatientListItemDto>> GetAllInpatientsAsync()
         {
-            var dtoList = new List<InpatientListItemDto>
+            var patientsQuery = _context.Patients
+                .AsNoTracking()
+                .Where(p => p.IsActive)
+                .Include(p => p.EpisodeCares)
+                    .ThenInclude(e => e.AccommodationData)
+                        .ThenInclude(a => a.Bed)
+                            .ThenInclude(b => b.Room)
+                                .ThenInclude(r => r.Ward)
+                .Include(p => p.ProblemData);
+
+            var patients = await patientsQuery.ToListAsync();
+
+            var dtoList = patients.Select(p =>
             {
-                new InpatientListItemDto
+                var activeAccommodation = p.EpisodeCares
+                    .SelectMany(e => e.AccommodationData)
+                    .FirstOrDefault(a => a.IsActive);
+
+                var wardName = activeAccommodation?.Bed?.Room?.Ward?.Name 
+                               ?? activeAccommodation?.Bed?.Room?.WardId.ToString() 
+                               ?? "Unassigned";
+
+                var activeDiagnosis = p.ProblemData
+                    .FirstOrDefault(pd => pd.IsActive)?.Description 
+                    ?? "No Diagnosis";
+
+                return new InpatientListItemDto
                 {
-                    PatientId = 19,
-                    FirstName = "Alexandros",
-                    LastName = "Theodosiou",
-                    Age = 40,
-                    WardId = "ER-ROOM-5",
-                    Diagnosis = "Post-Surgery",
-                    HasPendingMeds = true,
-                    HasPendingMeals = true
-                }
-            };
-            return await Task.FromResult(dtoList);
+                    PatientId = p.Id,
+                    FirstName = p.FirstName,
+                    LastName = p.LastName,
+                    Age = CalculateAge(p.DateOfBirth),
+                    WardId = wardName,
+                    Diagnosis = activeDiagnosis,
+                    HasPendingMeds = false, 
+                    HasPendingMeals = false
+                };
+            }).ToList();
+
+            return dtoList;
         }
 
+        // =========================================================
+        // PHASE 2: Medication Per Patient 
+        // =========================================================
         public async Task<IEnumerable<MedicationListItemDto>> GetMedicationsForPatientAsync(
             int patientId, DateOnly date, string status)
         {
-            return await Task.FromResult(new List<MedicationListItemDto>());
+            var filterStatus = status.ToLower().Trim();
+            
+            var targetDate = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+
+            var query = _context.MedicationData
+                .AsNoTracking()
+                .Where(m => m.PatientId == patientId)
+                // Filter by Date
+                .Where(m => m.OnSetDateTime < targetDate.AddDays(1) && 
+                           (m.EndDateTime == null || m.EndDateTime >= targetDate))
+                .Include(m => m.Product)
+                .Include(m => m.QuantityUnit)
+                .Include(m => m.FrequencyOfIntakeUnit)
+                .Include(m => m.Patient)
+                    .ThenInclude(p => p.EpisodeCares)
+                        .ThenInclude(e => e.AccommodationData)
+                            .ThenInclude(a => a.Bed)
+                                .ThenInclude(b => b.Room)
+                                    .ThenInclude(r => r.Ward);
+
+            var dbMeds = await query.ToListAsync();
+
+            var dtoList = dbMeds.Select(m =>
+            {
+                string currentStatus = m.IsSubmitted ? "Given" : "Not Given";
+
+                var activeAcc = m.Patient.EpisodeCares
+                    .SelectMany(e => e.AccommodationData)
+                    .FirstOrDefault(a => a.IsActive);
+                
+                string ward = activeAcc?.Bed?.Room?.Ward?.Name ?? "Unassigned";
+                string bed = activeAcc?.Bed?.Name ?? "N/A";
+
+                return new MedicationListItemDto
+                {
+                    MedicationId = m.Id,
+                    PatientId = m.PatientId,
+                    PatientName = $"{m.Patient.FirstName} {m.Patient.LastName}",
+                    PatientAge = CalculateAge(m.Patient.DateOfBirth),
+                    Ward = ward,
+                    Bed = bed,
+                    DaysInWard = 0,
+
+                    ProductName = m.Product?.ProductName ?? "Unknown Drug",
+                    Quantity = m.Quantity,
+                    QuantityUnit = m.QuantityUnit?.Description ?? "units",
+                    Form = "N/A", 
+                    InstructionPatient = m.InstructionPatient,
+                    Status = currentStatus,
+                    HasReminder = false
+                };
+            });
+
+            if (filterStatus == "given")
+                dtoList = dtoList.Where(x => x.Status == "Given");
+            else if (filterStatus.Contains("not"))
+                dtoList = dtoList.Where(x => x.Status == "Not Given");
+
+            return dtoList;
         }
 
+        // =========================================================
+        // PHASE 3: Nutrition Per Patient 
+        // =========================================================
         public async Task<IEnumerable<NutritionListItemDto>> GetNutritionForPatientAsync(
             int patientId, DateOnly date, string status)
         {
@@ -47,21 +139,22 @@ namespace EHRNurse.Api.Services
             var startOfDay = targetDate.Date;
             var endOfDay = startOfDay.AddDays(1).AddTicks(-1);
             
-            var query = _db.FoodData
+            var query = _context.FoodData
+                .AsNoTracking()
                 .Where(fd => fd.PatientId == patientId)
-                .Where(fd => fd.OnSetDateTime >= startOfDay && fd.OnSetDateTime <= endOfDay)
-                .AsQueryable();
+                .Where(fd => fd.OnSetDateTime >= startOfDay && fd.OnSetDateTime <= endOfDay);
 
-            if (filterStatus == "served" || filterStatus == "completed")
+            // Apply status filter
+            if (filterStatus == "served" || filterStatus == "completed" || filterStatus == "given")
             {
                 query = query.Where(fd => fd.IsSubmitted == true);
             }
-            else if (filterStatus == "pending" || filterStatus == "not given")
+            else if (filterStatus == "pending" || filterStatus == "not given" || filterStatus.Contains("not"))
             {
                 query = query.Where(fd => fd.IsSubmitted == false);
             }
 
-            var patient = await _db.Patients.FindAsync(patientId);
+            var patient = await _context.Patients.FindAsync(patientId);
             var foodRecords = await query.Include(fd => fd.FoodType).ToListAsync();
             
             if (!foodRecords.Any())
@@ -69,8 +162,8 @@ namespace EHRNurse.Api.Services
                 return new List<NutritionListItemDto>();
             }
 
-            // Get accommodation by PatientId (not VisitId)
-            var latestAccommodation = await _db.AccommodationData
+            // Get accommodation by PatientId
+            var latestAccommodation = await _context.AccommodationData
                 .Include(a => a.Bed)
                 .Where(a => a.PatientId == patientId && a.IsActive)
                 .OrderByDescending(a => a.CreationDate)
@@ -85,7 +178,7 @@ namespace EHRNurse.Api.Services
                 bed = latestAccommodation.Bed.Name ?? "Unknown";
                 
                 // Get ward from bed's room
-                var bedWithRoom = await _db.AccommodationBeds
+                var bedWithRoom = await _context.AccommodationBeds
                     .Include(b => b.Room)
                         .ThenInclude(r => r.Ward)
                     .FirstOrDefaultAsync(b => b.Id == latestAccommodation.BedId);
@@ -119,6 +212,9 @@ namespace EHRNurse.Api.Services
             return result;
         }
 
+        // =========================================================
+        // PHASE 4: Schedule Views 
+        // =========================================================
         public async Task<IEnumerable<MedicationListItemDto>> GetMedicationScheduleAsync(
             DateOnly date, string status, string? search)
         {
@@ -131,7 +227,10 @@ namespace EHRNurse.Api.Services
             return await Task.FromResult(new List<NutritionListItemDto>());
         }
 
-        private int? CalculateAge(DateOnly dateOfBirth)
+        // =========================================================
+        // Helper Methods
+        // =========================================================
+        private int CalculateAge(DateOnly dateOfBirth)
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             var age = today.Year - dateOfBirth.Year;

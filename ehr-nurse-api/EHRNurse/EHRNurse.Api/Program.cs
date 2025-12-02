@@ -19,11 +19,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 
+// Repository registrations
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+// Service registrations
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IInpatientService, InpatientService>();
 builder.Services.AddScoped<IBarcodeService, BarcodeService>();
 
+// Log connection string (without password)
 var conn = builder.Configuration.GetConnectionString("DefaultConnection");
 Console.WriteLine($"Using connection: {new Npgsql.NpgsqlConnectionStringBuilder(conn) { Password = "" }}");
 
@@ -56,8 +60,9 @@ builder.Services.AddCors(policy =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
+// Enable legacy timestamp behavior for PostgreSQL
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var app = builder.Build();
 

@@ -14,7 +14,9 @@ namespace EHRNurse.Api.Controllers
             _inpatientService = inpatientService;
         }
 
+        /// <summary>
         /// Get nutrition for a specific patient
+        /// </summary>
         [HttpGet("patient/{patientId}")]
         public async Task<IActionResult> GetNutritionForPatient(
             int patientId,

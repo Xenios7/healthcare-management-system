@@ -1,28 +1,48 @@
-// using EHRNurse.Api.Dto;
-// using EHRNurse.Api.Interfaces;
-// using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using EHRNurse.Api.Dto;
+using EHRNurse.Api.Interfaces;
 
-// namespace EHRNurse.Api.Controllers
-// {
-//     [ApiController]
-//     [Route("api/[controller]")]
-//     public class NutritionController : ControllerBase
-//     {
-//         private readonly IInpatientService _inpatientService;
+namespace EHRNurse.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class InpatientsController : ControllerBase
+    {
+        private readonly IInpatientService _inpatientService;
 
-//         public NutritionController(IInpatientService inpatientService)
-//         {
-//             _inpatientService = inpatientService;
-//         }
+        public InpatientsController(IInpatientService inpatientService)
+        {
+            _inpatientService = inpatientService;
+        }
 
-//         [HttpGet("schedule")]
-//         public async Task<ActionResult<IEnumerable<NutritionListItemDto>>> GetNutritionSchedule(
-//             [FromQuery] DateOnly date,
-//             [FromQuery] string status = "all",
-//             [FromQuery] string? search = null)
-//         {
-//             var result = await _inpatientService.GetNutritionScheduleAsync(date, status, search);
-//             return Ok(result);
-//         }
-//     }
-// }
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<InpatientListItemDto>>> GetInpatients()
+        {
+            var patients = await _inpatientService.GetAllInpatientsAsync();
+            return Ok(patients);
+        }
+
+        [HttpGet("{id}/medication")]
+        public async Task<ActionResult<IEnumerable<MedicationListItemDto>>> GetPatientMedications(
+            int id, 
+            [FromQuery] DateOnly? date,
+            [FromQuery] string? status = "all")
+        {
+            var queryDate = date ?? DateOnly.FromDateTime(DateTime.Now);
+            var meds = await _inpatientService.GetMedicationsForPatientAsync(id, queryDate, status ?? "all");
+            return Ok(meds);
+        }
+
+        // --- NEW: ADD THIS METHOD ---
+        [HttpGet("{id}/nutrition")]
+        public async Task<ActionResult<IEnumerable<NutritionListItemDto>>> GetPatientNutrition(
+            int id, 
+            [FromQuery] DateOnly? date,
+            [FromQuery] string? status = "all")
+        {
+            var queryDate = date ?? DateOnly.FromDateTime(DateTime.Now);
+            var nutrition = await _inpatientService.GetNutritionForPatientAsync(id, queryDate, status ?? "all");
+            return Ok(nutrition);
+        }
+    }
+}
