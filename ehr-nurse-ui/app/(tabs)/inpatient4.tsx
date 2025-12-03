@@ -19,7 +19,8 @@ import { theme } from "../../styles/theme";
 import { TabsContainer } from "@/components/ui/tabsContainer";
 import { DaysContainer } from "@/components/ui/daysContainer";
 
-import { router, useLocalSearchParams } from "expo-router";
+
+import { router, useLocalSearchParams, usePathname } from "expo-router";
 import { API_BASE_URL } from "./Api_Base_Url";
 
 type PatientCard = {
@@ -55,20 +56,28 @@ function getStr(value: any, fallback: string): string {
   return fallback;
 }
 
-// Fixed date logic to match Dec 2025 seed data
+
 function buildDateParamFromDay(dayStr: string): string {
   const year = 2025;
-  const month = 11; // Dec
+  const month = 11;
   const day = Number(dayStr);
-  const d = new Date(year, month, day, 12, 0, 0); 
-  return d.toISOString().split('T')[0];
+  const d = new Date(year, month, day, 12, 0, 0);
+  return d.toISOString().split("T")[0];
 }
 
 export default function Inpatient4Screen() {
   const params = useLocalSearchParams();
 
-  const [selectedTab, setSelectedTab] = useState("Nutrition Intake");
-  // Default to "01" for seed data
+  const pathname = usePathname();
+
+  const selectedTab = useMemo(() => {
+    if (pathname.startsWith("/inpatient2")) return "Daily monitoring";
+    if (pathname.startsWith("/inpatient3")) return "Medication";
+    if (pathname.startsWith("/inpatient4")) return "Nutrition Intake";
+    if (pathname.startsWith("/inpatient5")) return "Appointments";
+    return "Daily monitoring";
+  }, [pathname]);
+
   const [selectedDay, setSelectedDay] = useState("01");
   const [checked, setChecked] = useState<boolean[]>([]);
   const [lastSynced, setLastSynced] = useState("");
@@ -84,7 +93,7 @@ export default function Inpatient4Screen() {
     "Appointments",
   ];
 
-  // Updated days to match December 2025 range
+
   const days = [
     { day: "Mon", date: "01" },
     { day: "Tue", date: "02" },
@@ -112,18 +121,19 @@ export default function Inpatient4Screen() {
     );
   }, []);
 
-  // FIX: Use useMemo to prevent infinite loop
+
   const patient = useMemo(() => {
     try {
       const idStr = getStr(
         (params as any).patientId ?? (params as any).id,
         "101"
       );
-      const name = getStr((params as any).name, "John Smith");
-      const ageStr = getStr((params as any).age, "66");
+
+      const name = getStr((params as any).name, "Test Patient2");
+      const ageStr = getStr((params as any).age, "");
       const ward = getStr((params as any).ward, "WARD - 1");
       const bed = getStr((params as any).bed, "101");
-      const daysStr = getStr((params as any).daysInWard, "0");
+      const daysStr = getStr((params as any).daysInWard, "88");
 
       return {
         id: Number(idStr),
@@ -135,12 +145,13 @@ export default function Inpatient4Screen() {
       };
     } catch {
       return {
-        id: 101,
-        name: "John Smith",
+
+        id: 1,
+        name: "Test Patient2",
         age: 66,
-        ward: "Unassigned",
-        bed: "N/A",
-        daysInWard: 0,
+        ward: "WARD - 1",
+        bed: "101",
+        daysInWard: 88,
       };
     }
   }, [
@@ -173,42 +184,38 @@ export default function Inpatient4Screen() {
 
         const dateParam = buildDateParamFromDay(selectedDay);
         const url = `${API_BASE_URL}/api/Inpatients/${patient.id}/nutrition?date=${dateParam}&status=all`;
-        
+
         console.log("Fetching Nutrition:", url);
         const res = await fetch(url);
-        
-        if (res.ok) {
-            const data = (await res.json()) as any[];
-            
-            // Map backend data to UI structure
-            const mappedMeals: NutritionItem[] = data.map((n) => ({
-                foodId: n.foodId,
-                patientId: n.patientId,
-                patientName: n.patientName,
-                patientAge: n.patientAge,
-                ward: n.ward,
-                bed: n.bed,
-                daysInWard: n.daysInWard,
-                // Map fields from your updated Service
-                mealType: n.mealType || "Unknown", // Title (e.g. OATMEAL)
-                mealName: n.mealName || "",
-                instructions: n.instructions || "", // Body (e.g. BREAKFAST)
-                portionSize: n.portionSize,
-                portionEatenPercentage: n.portionEatenPercentage,
-                status: n.status,
-                hasReminder: n.hasReminder,
-                onSetDateTime: n.onSetDateTime
-            }));
 
-            setMeals(mappedMeals);
-            // Initialize checkboxes based on data length
-            setChecked(new Array(mappedMeals.length).fill(false));
+        if (res.ok) {
+          const data = (await res.json()) as any[];
+
+          const mappedMeals: NutritionItem[] = data.map((n) => ({
+            foodId: n.foodId,
+            patientId: n.patientId,
+            patientName: n.patientName,
+            patientAge: n.patientAge,
+            ward: n.ward,
+            bed: n.bed,
+            daysInWard: n.daysInWard,
+            mealType: n.mealType || "Unknown",
+            mealName: n.mealName || "",
+            instructions: n.instructions || "",
+            portionSize: n.portionSize,
+            portionEatenPercentage: n.portionEatenPercentage,
+            status: n.status,
+            hasReminder: n.hasReminder,
+            onSetDateTime: n.onSetDateTime,
+          }));
+
+          setMeals(mappedMeals);
+          setChecked(new Array(mappedMeals.length).fill(false));
         } else {
-            throw new Error("API Failed");
+          throw new Error("API Failed");
         }
       } catch (e) {
         console.error(e);
-        // Demo fallback
         setMeals([
           {
             foodId: 1,
@@ -226,6 +233,8 @@ export default function Inpatient4Screen() {
             status: "not_given",
             hasReminder: false,
             onSetDateTime: new Date().toISOString()
+
+           
           },
         ]);
         setError("Showing demo nutrition data (API error).");
@@ -237,204 +246,209 @@ export default function Inpatient4Screen() {
     loadMeals();
   }, [patient, selectedDay]);
 
+  const handleSelectTab = (tab: string) => {
+    if (!navParams) return;
+
+    switch (tab) {
+      case "Daily monitoring":
+        router.push({
+          pathname: "/inpatient2",
+          params: navParams,
+        });
+        break;
+
+      case "Medication":
+        router.push({
+          pathname: "/inpatient3",
+          params: navParams,
+        });
+        break;
+
+      case "Nutrition Intake":
+        router.push({
+          pathname: "/inpatient4",
+          params: navParams,
+        });
+        break;
+
+      case "Appointments":
+        router.push({
+          pathname: "/inpatient5",
+          params: navParams,
+        });
+        break;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeContainer} edges={["top", "left", "right"]}>
       <View style={styles.inner}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
-        {/* header*/}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <MaterialIcons
-              name="arrow-back-ios"
-              size={20}
-              color={theme.colors.text}
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={{ paddingBottom: 120 }}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.replace("../patients")}>
+              <MaterialIcons
+                name="arrow-back-ios"
+                size={20}
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Patient Details</Text>
+          </View>
+
+          <Text style={styles.syncedText}>Last synced: {lastSynced}</Text>
+
+          <View style={styles.patientInfo}>
+            <Image
+              source={require("../../assets/images/user.png")}
+              style={styles.userIcon}
             />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Patient Details</Text>
-        </View>
 
-        <Text style={styles.syncedText}>Last synced: {lastSynced}</Text>
-
-        {/* patient info - top section */}
-        <View style={styles.patientInfo}>
-          <Image
-            source={require("../../assets/images/user.png")}
-            style={styles.userIcon}
-          />
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.name}>
-              {patient?.name ?? "Test Patient2"} (
-              {patient?.age ?? "?"}
-              yo)
-            </Text>
-
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <MaterialCommunityIcons name="doctor" size={18} color="#B0B0B0" />
-              <Text style={[styles.subText, { marginLeft: 6 }]}>
-                Dr. Adamides
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>
+                {patient?.name ?? "Test Patient2"} (
+                {patient?.age ?? "?"}
+                yo)
               </Text>
-            </View>
 
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <FontAwesome name="bed" size={18} color="#B0B0B0" />
-              <Text style={[styles.subText, { marginLeft: 6 }]}>
-                {patient?.ward ?? "Ward - 1"} | {patient?.bed ?? "101"} |{" "}
-                {patient?.daysInWard ?? 0} days
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* tabs */}
-        <TabsContainer
-          tabs={tabs}
-          selectedTab={selectedTab}
-          onSelect={(tab) => {
-            setSelectedTab(tab);
-
-            if (!navParams) return;
-
-            if (tab === "Daily monitoring") {
-              router.replace({
-                pathname: "/inpatients2-1" as any,
-                params: navParams,
-              });
-              return;
-            }
-
-            if (tab === "Medication") {
-              router.replace({
-                pathname: "/inpatient3" as any,
-                params: navParams,
-              });
-              return;
-            }
-
-            // Already here
-            if (tab === "Nutrition Intake") {
-               return;
-            }
-
-            if (tab === "Appointments") {
-              router.replace({
-                pathname: "/inpatient5" as any,
-                params: navParams,
-              });
-              return;
-            }
-          }}
-        />
-
-        {/* days section */}
-        <DaysContainer
-          days={days}
-          selectedDay={selectedDay}
-          onSelect={setSelectedDay}
-        />
-
-        <Text style={styles.sectionTitle}>Nutrition Schedule</Text>
-        <View style={styles.line} />
-
-        {loading ? (
-          <View style={{ marginTop: 24, alignItems: "center" }}>
-            <ActivityIndicator color={theme.colors.primary} />
-          </View>
-        ) : meals.length === 0 ? (
-          <View style={{ marginTop: 24, alignItems: "center" }}>
-            <MaterialIcons
-              name="search"
-              size={60}
-              color={theme.colors.primaryDark}
-            />
-            <Text style={{ marginTop: 8, color: theme.colors.mutedText }}>
-              No meals found for Dec {selectedDay}.
-            </Text>
-          </View>
-        ) : (
-          meals.map((meal, i) => (
-            <View key={meal.foodId ?? i} style={styles.mealCard}>
-              {/* top row */}
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <MaterialCommunityIcons
-                  name="silverware-fork-knife"
-                  size={30}
-                  color={theme.colors.primary}
-                />
-
-                {/* meal title */}
-                <Text style={[styles.mealTitle, { marginLeft: 10 }]}>
-                  {meal.mealType.toUpperCase()}
+                <MaterialCommunityIcons name="doctor" size={18} color="#B0B0B0" />
+                <Text style={[styles.subText, { marginLeft: 6 }]}>
+                  George Adamides
                 </Text>
               </View>
 
-              {/* which meal (e.g. BREAKFAST) */}
-              <Text style={styles.mealSubtitle}>
-                {meal.instructions ? meal.instructions.toUpperCase() : "MEAL"}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <FontAwesome name="bed" size={18} color="#B0B0B0" />
+                <Text style={[styles.subText, { marginLeft: 6 }]}>
+                  {patient?.ward ?? "Ward - 1"} | {patient?.bed ?? "101"} |{" "}
+                  {patient?.daysInWard ?? 0} days
+                </Text>
+              </View>
+            </View>
+          </View>
 
-              <View style={styles.decorativeLine} />
+          <TabsContainer
+            tabs={tabs}
+            selectedTab={selectedTab}
+            onSelect={handleSelectTab}
+          />
 
-              {/* notes for meal */}
-              <Text style={styles.mealNote}>
-                • Time: {meal.onSetDateTime ? new Date(meal.onSetDateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "TBD"}
-              </Text>
-              <Text style={styles.mealNote}>
-                • Instructions: {meal.mealName || "Standard"}
-              </Text>
-              <Text style={styles.mealNote}>
-                • Portion:{" "}
-                {meal.portionSize != null ? `${meal.portionSize}g` : "n/a"}
-                {meal.portionEatenPercentage != null
-                  ? ` • Eaten: ${meal.portionEatenPercentage}%`
-                  : ""}
-              </Text>
+          <DaysContainer
+            days={days}
+            selectedDay={selectedDay}
+            onSelect={setSelectedDay}
+          />
 
-              {/* reminder and checkbox */}
-              <View style={styles.cardFooter}>
-                <View
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <MaterialIcons
-                    name="notifications-none"
-                    size={20}
+          <Text style={styles.sectionTitle}>Nutrition Schedule</Text>
+          <View style={styles.line} />
+
+          {loading ? (
+            <View style={{ marginTop: 24, alignItems: "center" }}>
+              <ActivityIndicator color={theme.colors.primary} />
+            </View>
+          ) : meals.length === 0 ? (
+            <View style={{ marginTop: 24, alignItems: "center" }}>
+              <MaterialIcons
+                name="search"
+                size={60}
+                color={theme.colors.primaryDark}
+              />
+              <Text style={{ marginTop: 8, color: theme.colors.mutedText }}>
+                No meals found for Dec {selectedDay}.
+              </Text>
+            </View>
+          ) : (
+            meals.map((meal, i) => (
+              <View key={meal.foodId ?? i} style={styles.mealCard}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <MaterialCommunityIcons
+                    name="silverware-fork-knife"
+                    size={30}
                     color={theme.colors.primary}
                   />
-                  <Text style={[styles.addReminder, { marginLeft: 6 }]}>
-                    Add reminder
+
+                  <Text style={[styles.mealTitle, { marginLeft: 10 }]}>
+                    {meal.mealType.toUpperCase()}
                   </Text>
                 </View>
 
-                <TouchableOpacity onPress={() => toggleCheck(i)}>
+                <Text style={styles.mealSubtitle}>
+                  {meal.instructions ? meal.instructions.toUpperCase() : "MEAL"}
+                </Text>
+
+                <View style={styles.decorativeLine} />
+
+                <Text style={styles.mealNote}>
+                  • Time:{" "}
+                  {meal.onSetDateTime
+                    ? new Date(meal.onSetDateTime).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                    : "TBD"}
+                </Text>
+                <Text style={styles.mealNote}>
+                  • Instructions: {meal.mealName || "Standard"}
+                </Text>
+                <Text style={styles.mealNote}>
+                  • Portion:{" "}
+                  {meal.portionSize != null ? `${meal.portionSize}g` : "n/a"}
+                  {meal.portionEatenPercentage != null
+                    ? ` • Eaten: ${meal.portionEatenPercentage}%`
+                    : ""}
+                </Text>
+
+                <View style={styles.cardFooter}>
                   <View
-                    style={checked[i] ? styles.checkActive : styles.checkInactive}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
                   >
                     <MaterialIcons
-                      name="check"
+                      name="notifications-none"
                       size={20}
-                      color={checked[i] ? "#FFFFFF" : "#7E7E7E"}
+                      color={theme.colors.primary}
                     />
+                    <Text style={[styles.addReminder, { marginLeft: 6 }]}>
+                      Add reminder
+                    </Text>
                   </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
 
-        {error && (
-          <Text style={{ color: "red", marginTop: 8, fontSize: 12, textAlign:'center' }}>
-            {error}
-          </Text>
-        )}
-      </ScrollView>
+                  <TouchableOpacity onPress={() => toggleCheck(i)}>
+                    <View
+                      style={checked[i] ? styles.checkActive : styles.checkInactive}
+                    >
+                      <MaterialIcons
+                        name="check"
+                        size={20}
+                        color={checked[i] ? "#FFFFFF" : "#7E7E7E"}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+
+          {error && (
+            <Text
+              style={{
+                color: "red",
+                marginTop: 8,
+                fontSize: 12,
+                textAlign: "center",
+              }}
+            >
+              {error}
+            </Text>
+          )}
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -577,4 +591,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
 });
+

@@ -97,6 +97,40 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="inpatients2-1"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="inpatient2"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="inpatient3"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="inpatient4"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="inpatient5"
+        options={{
+          href: null,
+        }}
+      />
+
     </Tabs>
   );
 }

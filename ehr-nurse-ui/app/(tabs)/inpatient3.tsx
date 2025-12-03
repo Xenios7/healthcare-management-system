@@ -14,7 +14,8 @@ import {
   FontAwesome,
 } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+
+import { router, useLocalSearchParams, usePathname } from "expo-router";
 
 import { theme } from "../../styles/theme";
 import { API_BASE_URL } from "./Api_Base_Url";
@@ -39,8 +40,7 @@ type MedicationItem = {
   medicationId: number;
   patientId: number;
   productName: string;
-  
-  // UI Specific Fields (Mapped or Defaulted)
+ // UI Specific Fields (Mapped or Defaulted)
   form: string;
   quantity: number;
   quantityUnit: string;
@@ -68,7 +68,8 @@ function buildDateParamFromDay(dayStr: string): string {
   const year = 2025;
   const month = 11; // Month is 0-indexed (11 = Dec)
   const day = Number(dayStr);
-  const d = new Date(year, month, day, 12, 0, 0); 
+
+  const d = new Date(year, month, day, 12, 0, 0);
   return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
 }
 
@@ -76,10 +77,21 @@ export default function Inpatient3Screen() {
   const params = useLocalSearchParams();
 
   const [lastSynced, setLastSynced] = useState("");
-  // Removed state for patient to prevent infinite loops, replaced with useMemo below
+
   
-  const [selectedTab, setSelectedTab] = useState("Medication");
-  const [selectedDay, setSelectedDay] = useState("01"); 
+  //handle selected tab
+  const pathname = usePathname();
+
+  const selectedTab = useMemo(() => {
+    if (pathname.startsWith("/inpatient2")) return "Daily monitoring";
+    if (pathname.startsWith("/inpatient3")) return "Medication";
+    if (pathname.startsWith("/inpatient4")) return "Nutrition Intake";
+    if (pathname.startsWith("/inpatient5")) return "Appointments";
+    return "Daily monitoring";
+  }, [pathname]);
+
+
+  const [selectedDay, setSelectedDay] = useState("01");
 
   const [medications, setMedications] = useState<MedicationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,7 +107,9 @@ export default function Inpatient3Screen() {
 
   // Updated days to match December 2025 range
   const days = [
-    { day: "Mon", date: "01" }, // Seed Data is here
+
+    
+    { day: "Mon", date: "01" },
     { day: "Tue", date: "02" },
     { day: "Wed", date: "03" },
     { day: "Thu", date: "04" },
@@ -121,11 +135,12 @@ export default function Inpatient3Screen() {
         (params as any).patientId ?? (params as any).id,
         "101"
       );
-      const name = getStr((params as any).name, "John Smith");
-      const ageStr = getStr((params as any).age, "66");
+
+      const name = getStr((params as any).name, "Test Patient2");
+      const ageStr = getStr((params as any).age, "");
       const ward = getStr((params as any).ward, "WARD - 1");
       const bed = getStr((params as any).bed, "101");
-      const daysStr = getStr((params as any).daysInWard, "0");
+      const daysStr = getStr((params as any).daysInWard, "88");
 
       return {
         id: Number(idStr),
@@ -137,21 +152,22 @@ export default function Inpatient3Screen() {
       };
     } catch (e) {
       return {
-        id: 101,
-        name: "John Smith",
+
+        id: 1,
+        name: "Test Patient2",
         age: 66,
-        ward: "Unassigned",
-        bed: "N/A",
-        daysInWard: 0,
+        ward: "WARD - 1",
+        bed: "101",
+        daysInWard: 88,
       };
     }
   }, [
-    params.patientId, 
-    params.id, 
-    params.name, 
-    params.age, 
-    params.ward, 
-    params.bed, 
+    params.patientId,
+    params.id,
+    params.name,
+    params.age,
+    params.ward,
+    params.bed,
     params.daysInWard
   ]);
 
@@ -165,49 +181,46 @@ export default function Inpatient3Screen() {
         setLoading(true);
 
         const dateParam = buildDateParamFromDay(selectedDay);
-        
         // Use the working URL logic
         const url = `${API_BASE_URL}/api/Inpatients/${patient.id}/medication?date=${dateParam}&status=all`;
         console.log("Fetching Meds:", url);
 
         const res = await fetch(url);
-        
-        if (res.ok) {
-            const rawData = await res.json();
-            
-            // MAP Backend Data -> Frontend UI Structure
-            // Because backend doesn't send "frequency", "form", etc. yet, we default them.
-            const mappedData: MedicationItem[] = Array.isArray(rawData) ? rawData.map((m: any) => ({
-                medicationId: m.medicationId,
-                patientId: m.patientId,
-                productName: m.productName || "Unknown Med",
-                
-                // Fields from Backend
-                quantity: m.quantity || 1,
-                quantityUnit: m.quantityUnit || "tab",
-                status: m.status?.toLowerCase() || "not_given",
-                instructionPatient: m.instructionPatient || "No instructions",
-                
-                // UI Fields (Defaulted for now until Backend sends them)
-                form: m.form || "Tablet", 
-                frequencyAmount: 1, 
-                frequencyUnit: "Day", 
-                durationAmount: 1, 
-                durationUnit: "Week", 
-                route: "Oral",
-                endDate: m.endDate || null,
-                hasReminder: false
-            })) : [];
 
-            setMedications(mappedData);
-            setChecked({});
+        if (res.ok) {
+          const rawData = await res.json();
+
+          // MAP Backend Data -> Frontend UI Structure
+          const mappedData: MedicationItem[] = Array.isArray(rawData) ? rawData.map((m: any) => ({
+            medicationId: m.medicationId,
+            patientId: m.patientId,
+            productName: m.productName || "Unknown Med",
+
+            // Fields from Backend
+            quantity: m.quantity || 1,
+            quantityUnit: m.quantityUnit || "tab",
+            status: m.status?.toLowerCase() || "not_given",
+            instructionPatient: m.instructionPatient || "No instructions",
+
+            // UI Fields (Defaulted for now until Backend sends them)
+            form: m.form || "Tablet",
+            frequencyAmount: 1,
+            frequencyUnit: "Day",
+            durationAmount: 1,
+            durationUnit: "Week",
+            route: "Oral",
+            endDate: m.endDate || null,
+            hasReminder: false
+          })) : [];
+
+          setMedications(mappedData);
+          setChecked({});
         } else {
-            throw new Error("API Failed");
+          throw new Error("API Failed");
         }
 
       } catch (e: any) {
         console.error("Fetch error:", e);
-        setMedications([]); 
         setError("Could not load medications. Check server.");
       } finally {
         setLoading(false);
@@ -234,6 +247,43 @@ export default function Inpatient3Screen() {
       daysInWard: String(patient.daysInWard),
     };
 
+
+  const handleSelectTab = (tab: string) => {
+    if (!navParams) return;
+
+    switch (tab) {
+      case "Daily monitoring":
+        router.push({
+          pathname: "/inpatient2",
+          params: navParams,
+        });
+        break;
+
+      case "Medication":
+        router.push({
+          pathname: "/inpatient3",
+          params: navParams,
+        });
+        break;
+
+      case "Nutrition Intake":
+        router.push({
+          pathname: "/inpatient4",
+          params: navParams,
+        });
+        break;
+
+      case "Appointments":
+        router.push({
+          pathname: "/inpatient5",
+          params: navParams,
+        })
+
+        break;
+    }
+  };
+
+
   return (
     <SafeAreaView
       style={styles.safeContainer}
@@ -247,7 +297,9 @@ export default function Inpatient3Screen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
+
+            {/* navigate back to patients list */}
+            <TouchableOpacity onPress={() => router.replace("../patients")}>
               <MaterialIcons
                 name="arrow-back-ios"
                 size={20}
@@ -278,7 +330,8 @@ export default function Inpatient3Screen() {
                   color="#B0B0B0"
                 />
                 <Text style={[styles.subText, { marginLeft: 6 }]}>
-                  Dr. Adamides
+
+                  George Adamides
                 </Text>
               </View>
 
@@ -295,29 +348,8 @@ export default function Inpatient3Screen() {
           <TabsContainer
             tabs={tabs}
             selectedTab={selectedTab}
-            onSelect={(tab) => {
-              setSelectedTab(tab);
-              if (!navParams) return;
 
-              // Navigation Logic
-              if (tab === "Medication") {
-                router.replace({
-                  pathname: "/inpatient3", // medication
-                  params: navParams,
-                });
-              }
-              if (tab === "Nutrition Intake") {
-                router.replace({
-                  pathname: "/inpatient4", // nutrition screen
-                  params: navParams,
-                });
-              }
-               //if (tab === "Appointments") {
-               // router.replace({
-                //  pathname: "/inpatient5", // appointments
-               // });
-             // }
-            }}
+            onSelect={handleSelectTab}
           />
 
           {/* Days */}

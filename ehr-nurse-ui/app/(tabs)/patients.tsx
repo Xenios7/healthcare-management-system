@@ -189,7 +189,7 @@ export default function PatientsScreen() {
           {filteredPatients.map((p) => (
             <TouchableOpacity key={p.id} style={styles.card} onPress={() =>
               router.push({
-                pathname: "/inpatients2-1",
+                pathname: "/inpatient2",
                 params: {
                   patientId: String(p.id),
                   name: p.name,
