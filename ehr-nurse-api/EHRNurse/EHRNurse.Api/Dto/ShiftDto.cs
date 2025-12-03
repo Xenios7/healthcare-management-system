@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace EHRNurse.Api.Dto
 {
-
     public class ShiftRequestDto
     {
         [Required(ErrorMessage = "Username is required")]
@@ -39,7 +38,6 @@ namespace EHRNurse.Api.Dto
             }
         }
     }
-
 
     public class ShiftStatusDto
     {
