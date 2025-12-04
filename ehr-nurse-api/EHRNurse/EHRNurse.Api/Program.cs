@@ -29,7 +29,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IInpatientService, InpatientService>();
 builder.Services.AddScoped<IBarcodeService, BarcodeService>();
-builder.Services.AddScoped<IShiftService, ShiftService>(); // <--- ADDED THIS LINE
+builder.Services.AddScoped<IShiftService, ShiftService>(); 
 
 // Log connection string (without password)
 var conn = builder.Configuration.GetConnectionString("DefaultConnection");
