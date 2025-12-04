@@ -46,7 +46,6 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<AllergyUnknownDatum> AllergyUnknownData { get; set; }
 
     public virtual DbSet<Answer> Answers { get; set; }
-    public DbSet<Shift> Shifts { get; set; }
     public virtual DbSet<AnswerQuestionnaire> AnswerQuestionnaires { get; set; }
 
     public virtual DbSet<AppointmentDatum> AppointmentData { get; set; }
