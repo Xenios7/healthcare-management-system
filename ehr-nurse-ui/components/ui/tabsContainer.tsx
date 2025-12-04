@@ -1,12 +1,13 @@
 import React from "react";
 import {
   View,
-  Pressable,
-  ScrollView,
+  Text,
   StyleSheet,
-  ViewStyle,
+  ScrollView,
+  TouchableOpacity,
+  useWindowDimensions,
 } from "react-native";
-import { ThemedText } from "@/components/themed-text";
+import { theme } from "../../styles/theme";
 
 type TabsContainerProps = {
   tabs: string[];
@@ -14,60 +15,83 @@ type TabsContainerProps = {
   onSelect: (tab: string) => void;
 };
 
-export function TabsContainer({ tabs, selectedTab, onSelect }: TabsContainerProps) {
+export const TabsContainer: React.FC<TabsContainerProps> = ({
+  tabs,
+  selectedTab,
+  onSelect,
+}) => {
+  const { width } = useWindowDimensions();
+
+  const tabMinWidth = Math.min(width / 3 - 16, 160);
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.tabsRow as ViewStyle}
-    >
-      {tabs.map((tab: string) => (
-        <Pressable key={tab} onPress={() => onSelect(tab)}>
-          <View
-            style={[
-              styles.tabBox,
-              selectedTab === tab && styles.tabBoxSelected,
-              { marginRight: 8 },
-            ]}
-          >
-            <ThemedText
-              type="defaultSemiBold"
+    <View style={styles.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {tabs.map((tab) => {
+          const isActive = tab === selectedTab;
+
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => onSelect(tab)}
               style={[
-                styles.tabText,
-                selectedTab === tab && styles.tabTextSelected,
+                styles.tab,
+                { minWidth: tabMinWidth },
+                isActive && styles.tabActive,
               ]}
             >
-              {tab}
-            </ThemedText>
-          </View>
-        </Pressable>
-      ))}
-    </ScrollView>
+              <Text
+                numberOfLines={1}
+                style={[styles.tabText, isActive && styles.tabTextActive]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
-}
-
-const LIGHT_TURQUOISE = "#E3FBF9";
-const BRIGHT_TURQUOISE = "#1B998E";
+};
 
 const styles = StyleSheet.create({
-  tabsRow: {
-    flexDirection: "row",
+  container: {
+    marginBottom: 12,
+  },
+  scrollContent: {
+    paddingHorizontal: 4,
+    alignItems: "center",
+  },
+  tab: {
+    paddingHorizontal: 14,
     paddingVertical: 8,
+    borderRadius: 999,
+    marginHorizontal: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  tabBox: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: LIGHT_TURQUOISE,
-  },
-  tabBoxSelected: {
-    backgroundColor: BRIGHT_TURQUOISE,
+  tabActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   tabText: {
-    color: "#000",
+    fontSize: 13,
+    fontWeight: "500",
+    color: theme.colors.mutedText,
   },
-  tabTextSelected: {
-    color: "#fff",
-    fontWeight: "700",
+  tabTextActive: {
+    color: "#FFFFFF",
   },
 });

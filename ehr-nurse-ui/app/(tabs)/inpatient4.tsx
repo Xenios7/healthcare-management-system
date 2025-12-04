@@ -19,7 +19,6 @@ import { theme } from "../../styles/theme";
 import { TabsContainer } from "@/components/ui/tabsContainer";
 import { DaysContainer } from "@/components/ui/daysContainer";
 
-
 import { router, useLocalSearchParams, usePathname } from "expo-router";
 import { API_BASE_URL } from "./Api_Base_Url";
 
@@ -50,41 +49,62 @@ type NutritionItem = {
   onSetDateTime: string;
 };
 
+type DayDef = { day: string; date: string; month: string };
+
+function buildDays(): DayDef[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(today);
+  start.setDate(start.getDate() - 30); // 30 μέρες ΠΙΣΩ
+
+  const totalDays = 61; // 30 πίσω + σήμερα + 30 μπροστά
+  const days: DayDef[] = [];
+
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+
+    days.push({
+      day: d.toLocaleDateString(undefined, { weekday: "short" }),
+      date: d.getDate().toString().padStart(2, "0"),
+      month: d.toLocaleDateString(undefined, { month: "short" }),
+    });
+  }
+
+  return days;
+}
+
 function getStr(value: any, fallback: string): string {
   if (Array.isArray(value)) return value[0] ?? fallback;
   if (typeof value === "string") return value;
   return fallback;
 }
 
-
+// Dec 2025 seed data (όπως πριν)
 function buildDateParamFromDay(dayStr: string): string {
   const year = 2025;
-  const month = 11;
+  const month = 11; // December (0-indexed)
   const day = Number(dayStr);
   const d = new Date(year, month, day, 12, 0, 0);
-  return d.toISOString().split("T")[0];
+  return d.toISOString().split("T")[0]; // YYYY-MM-DD
 }
 
 export default function Inpatient4Screen() {
   const params = useLocalSearchParams();
-
   const pathname = usePathname();
 
-  const selectedTab = useMemo(() => {
-    if (pathname.startsWith("/inpatient2")) return "Daily monitoring";
-    if (pathname.startsWith("/inpatient3")) return "Medication";
-    if (pathname.startsWith("/inpatient4")) return "Nutrition Intake";
-    if (pathname.startsWith("/inpatient5")) return "Appointments";
-    return "Daily monitoring";
-  }, [pathname]);
-
-  const [selectedDay, setSelectedDay] = useState("01");
+  const [selectedDay, setSelectedDay] = useState(
+    () => new Date().getDate().toString().padStart(2, "0")
+  );
   const [checked, setChecked] = useState<boolean[]>([]);
   const [lastSynced, setLastSynced] = useState("");
 
   const [meals, setMeals] = useState<NutritionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const days = useMemo(buildDays, []);
 
   const tabs = [
     "Daily monitoring",
@@ -93,15 +113,13 @@ export default function Inpatient4Screen() {
     "Appointments",
   ];
 
-
-  const days = [
-    { day: "Mon", date: "01" },
-    { day: "Tue", date: "02" },
-    { day: "Wed", date: "03" },
-    { day: "Thu", date: "04" },
-    { day: "Fri", date: "05" },
-    { day: "Sat", date: "06" },
-  ];
+  const selectedTab = useMemo(() => {
+    if (pathname.startsWith("/inpatient2")) return "Daily monitoring";
+    if (pathname.startsWith("/inpatient3")) return "Medication";
+    if (pathname.startsWith("/inpatient4")) return "Nutrition Intake";
+    if (pathname.startsWith("/inpatient5")) return "Appointments";
+    return "Daily monitoring";
+  }, [pathname]);
 
   const toggleCheck = (index: number) => {
     setChecked((prev) => {
@@ -121,61 +139,49 @@ export default function Inpatient4Screen() {
     );
   }, []);
 
-
-  const patient = useMemo(() => {
+  // Σταθερός patient από τα params (ίδιο pattern με 2/3/5)
+  const patient: PatientCard = (() => {
     try {
-      const idStr = getStr(
-        (params as any).patientId ?? (params as any).id,
-        "101"
-      );
+      const p: any = params;
 
-      const name = getStr((params as any).name, "Test Patient2");
-      const ageStr = getStr((params as any).age, "");
-      const ward = getStr((params as any).ward, "WARD - 1");
-      const bed = getStr((params as any).bed, "101");
-      const daysStr = getStr((params as any).daysInWard, "88");
+      const idStr = getStr(p.patientId ?? p.id, "101");
+      const name = getStr(p.name, "John Smith");
+      const ageStr = getStr(p.age, "66");
+      const ward = getStr(p.ward, "WARD - 1");
+      const bed = getStr(p.bed, "101");
+      const daysStr = getStr(p.daysInWard, "0");
 
       return {
-        id: Number(idStr),
+        id: Number(idStr) || 101,
         name,
-        age: Number(ageStr),
+        age: ageStr ? Number(ageStr) : 66,
         ward,
         bed,
-        daysInWard: Number(daysStr),
+        daysInWard: Number(daysStr) || 0,
       };
     } catch {
       return {
-
-        id: 1,
-        name: "Test Patient2",
+        id: 101,
+        name: "John Smith",
         age: 66,
-        ward: "WARD - 1",
-        bed: "101",
-        daysInWard: 88,
+        ward: "Unassigned",
+        bed: "N/A",
+        daysInWard: 0,
       };
     }
-  }, [
-    params.patientId,
-    params.id,
-    params.name,
-    params.age,
-    params.ward,
-    params.bed,
-    params.daysInWard,
-  ]);
+  })();
 
-  const navParams =
-    patient && {
-      patientId: String(patient.id),
-      name: patient.name,
-      age: patient.age != null ? String(patient.age) : "",
-      ward: patient.ward,
-      bed: patient.bed,
-      daysInWard: String(patient.daysInWard),
-    };
+  const navParams = {
+    patientId: String(patient.id),
+    name: patient.name,
+    age: patient.age != null ? String(patient.age) : "",
+    ward: patient.ward,
+    bed: patient.bed,
+    daysInWard: String(patient.daysInWard),
+  };
 
   useEffect(() => {
-    if (!patient) return;
+    if (!patient.id) return;
 
     const loadMeals = async () => {
       try {
@@ -192,21 +198,26 @@ export default function Inpatient4Screen() {
           const data = (await res.json()) as any[];
 
           const mappedMeals: NutritionItem[] = data.map((n) => ({
-            foodId: n.foodId,
-            patientId: n.patientId,
-            patientName: n.patientName,
-            patientAge: n.patientAge,
-            ward: n.ward,
-            bed: n.bed,
-            daysInWard: n.daysInWard,
-            mealType: n.mealType || "Unknown",
-            mealName: n.mealName || "",
-            instructions: n.instructions || "",
-            portionSize: n.portionSize,
-            portionEatenPercentage: n.portionEatenPercentage,
-            status: n.status,
-            hasReminder: n.hasReminder,
-            onSetDateTime: n.onSetDateTime,
+            foodId: n.foodId || n.FoodId,
+            patientId: n.patientId || n.PatientId,
+            patientName: n.patientName || n.PatientName,
+            patientAge: n.patientAge || n.PatientAge,
+            ward: n.ward || n.Ward,
+            bed: n.bed || n.Bed,
+            daysInWard: n.daysInWard || n.DaysInWard,
+
+            mealType: n.mealType || n.MealType || "Unknown Meal",
+            mealName: n.mealName || n.MealName || "",
+            instructions:
+              n.instructions || n.Instructions || n.foodType || "Standard",
+
+            portionSize: n.portionSize || n.PortionSize,
+            portionEatenPercentage:
+              n.portionEatenPercentage || n.PortionEatenPercentage,
+            status: n.status || n.Status,
+            hasReminder: n.hasReminder || n.HasReminder || false,
+            onSetDateTime:
+              n.onSetDateTime || n.OnSetDateTime || new Date().toISOString(),
           }));
 
           setMeals(mappedMeals);
@@ -216,35 +227,15 @@ export default function Inpatient4Screen() {
         }
       } catch (e) {
         console.error(e);
-        setMeals([
-          {
-            foodId: 1,
-            patientId: patient.id,
-            patientName: patient.name,
-            patientAge: patient.age,
-            ward: patient.ward,
-            bed: patient.bed,
-            daysInWard: patient.daysInWard,
-            mealType: "BREAKFAST",
-            mealName: "CHICKEN WITH RICE",
-            instructions: "Put them in the mixer. Serve cold",
-            portionSize: 250,
-            portionEatenPercentage: 100,
-            status: "not_given",
-            hasReminder: false,
-            onSetDateTime: new Date().toISOString()
-
-           
-          },
-        ]);
-        setError("Showing demo nutrition data (API error).");
+        setMeals([]);
+        setError("Could not load nutrition data. Check console.");
       } finally {
         setLoading(false);
       }
     };
 
     loadMeals();
-  }, [patient, selectedDay]);
+  }, [patient.id, selectedDay]); // μόνο id + ημέρα
 
   const handleSelectTab = (tab: string) => {
     if (!navParams) return;
@@ -256,21 +247,18 @@ export default function Inpatient4Screen() {
           params: navParams,
         });
         break;
-
       case "Medication":
         router.push({
           pathname: "/inpatient3",
           params: navParams,
         });
         break;
-
       case "Nutrition Intake":
         router.push({
           pathname: "/inpatient4",
           params: navParams,
         });
         break;
-
       case "Appointments":
         router.push({
           pathname: "/inpatient5",
@@ -283,65 +271,66 @@ export default function Inpatient4Screen() {
   return (
     <SafeAreaView style={styles.safeContainer} edges={["top", "left", "right"]}>
       <View style={styles.inner}>
+        {/* HEADER + PATIENT INFO έξω από ScrollView */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.replace("../patients")}>
+            <MaterialIcons
+              name="arrow-back-ios"
+              size={20}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Patient Details</Text>
+        </View>
+
+        <Text style={styles.syncedText}>Last synced: {lastSynced}</Text>
+
+        <View style={styles.patientInfo}>
+          <Image
+            source={require("../../assets/images/user.png")}
+            style={styles.userIcon}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>
+              {patient.name} ({patient.age ?? "?"}yo)
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MaterialCommunityIcons
+                name="doctor"
+                size={18}
+                color="#B0B0B0"
+              />
+              <Text style={[styles.subText, { marginLeft: 6 }]}>
+                Dr. Adamides
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FontAwesome name="bed" size={18} color="#B0B0B0" />
+              <Text style={[styles.subText, { marginLeft: 6 }]}>
+                {patient.ward ?? "Unassigned"} | {patient.bed ?? "N/A"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <TabsContainer
+          tabs={tabs}
+          selectedTab={selectedTab}
+          onSelect={handleSelectTab}
+        />
+
+        <DaysContainer
+          days={days}
+          selectedDay={selectedDay}
+          onSelect={setSelectedDay}
+        />
+
+        {/* ΜΟΝΟ το schedule μέσα στο ScrollView για scrolling */}
         <ScrollView
           style={styles.container}
           contentContainerStyle={{ paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.replace("../patients")}>
-              <MaterialIcons
-                name="arrow-back-ios"
-                size={20}
-                color={theme.colors.text}
-              />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Patient Details</Text>
-          </View>
-
-          <Text style={styles.syncedText}>Last synced: {lastSynced}</Text>
-
-          <View style={styles.patientInfo}>
-            <Image
-              source={require("../../assets/images/user.png")}
-              style={styles.userIcon}
-            />
-
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>
-                {patient?.name ?? "Test Patient2"} (
-                {patient?.age ?? "?"}
-                yo)
-              </Text>
-
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <MaterialCommunityIcons name="doctor" size={18} color="#B0B0B0" />
-                <Text style={[styles.subText, { marginLeft: 6 }]}>
-                  George Adamides
-                </Text>
-              </View>
-
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <FontAwesome name="bed" size={18} color="#B0B0B0" />
-                <Text style={[styles.subText, { marginLeft: 6 }]}>
-                  {patient?.ward ?? "Ward - 1"} | {patient?.bed ?? "101"} |{" "}
-                  {patient?.daysInWard ?? 0} days
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <TabsContainer
-            tabs={tabs}
-            selectedTab={selectedTab}
-            onSelect={handleSelectTab}
-          />
-
-          <DaysContainer
-            days={days}
-            selectedDay={selectedDay}
-            onSelect={setSelectedDay}
-          />
-
           <Text style={styles.sectionTitle}>Nutrition Schedule</Text>
           <View style={styles.line} />
 
@@ -357,7 +346,7 @@ export default function Inpatient4Screen() {
                 color={theme.colors.primaryDark}
               />
               <Text style={{ marginTop: 8, color: theme.colors.mutedText }}>
-                No meals found for Dec {selectedDay}.
+                No meals found for {selectedDay}.
               </Text>
             </View>
           ) : (
@@ -369,14 +358,15 @@ export default function Inpatient4Screen() {
                     size={30}
                     color={theme.colors.primary}
                   />
-
                   <Text style={[styles.mealTitle, { marginLeft: 10 }]}>
                     {meal.mealType.toUpperCase()}
                   </Text>
                 </View>
 
                 <Text style={styles.mealSubtitle}>
-                  {meal.instructions ? meal.instructions.toUpperCase() : "MEAL"}
+                  {meal.instructions
+                    ? meal.instructions.toUpperCase()
+                    : "MEAL"}
                 </Text>
 
                 <View style={styles.decorativeLine} />
@@ -385,9 +375,9 @@ export default function Inpatient4Screen() {
                   • Time:{" "}
                   {meal.onSetDateTime
                     ? new Date(meal.onSetDateTime).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
                     : "TBD"}
                 </Text>
                 <Text style={styles.mealNote}>
@@ -419,10 +409,11 @@ export default function Inpatient4Screen() {
                       Add reminder
                     </Text>
                   </View>
-
                   <TouchableOpacity onPress={() => toggleCheck(i)}>
                     <View
-                      style={checked[i] ? styles.checkActive : styles.checkInactive}
+                      style={
+                        checked[i] ? styles.checkActive : styles.checkInactive
+                      }
                     >
                       <MaterialIcons
                         name="check"
@@ -455,10 +446,7 @@ export default function Inpatient4Screen() {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: "#F4F6F8",
-  },
+  safeContainer: { flex: 1, backgroundColor: "#F4F6F8" },
   inner: {
     flex: 1,
     paddingTop: 8,
@@ -472,7 +460,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.bg,
     padding: theme.spacing.md,
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -489,7 +476,6 @@ const styles = StyleSheet.create({
     color: theme.colors.mutedText,
     marginBottom: theme.spacing.md,
   },
-
   patientInfo: {
     flexDirection: "row",
     alignItems: "center",
@@ -510,7 +496,6 @@ const styles = StyleSheet.create({
     fontSize: theme.font.sm,
     color: theme.colors.mutedText,
   },
-
   sectionTitle: {
     fontSize: theme.font.md,
     fontWeight: "600",
@@ -521,7 +506,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.border,
     marginBottom: theme.spacing.lg,
   },
-
   mealCard: {
     backgroundColor: "#FFF",
     borderRadius: 14,
@@ -538,14 +522,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: theme.colors.text,
   },
-
   mealSubtitle: {
     color: theme.colors.primary,
     fontWeight: "700",
     marginTop: 10,
     marginLeft: 0,
   },
-
   decorativeLine: {
     height: 1,
     backgroundColor: "#d9d9d9",
@@ -553,19 +535,16 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     marginLeft: 0,
   },
-
   mealNote: {
     color: theme.colors.mutedText,
     fontSize: 12,
     marginTop: 2,
   },
-
   cardFooter: {
     marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
   },
-
   addReminder: {
     color: theme.colors.primary,
     fontWeight: "600",
@@ -580,7 +559,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   checkActive: {
     width: 34,
     height: 34,
@@ -591,6 +569,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
 });
-

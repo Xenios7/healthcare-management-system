@@ -20,11 +20,8 @@ import { router, useLocalSearchParams, usePathname } from "expo-router";
 import { theme } from "../../styles/theme";
 import { API_BASE_URL } from "./Api_Base_Url";
 
-// Ensure these components exist in your project, otherwise replace with simple Views
 import { TabsContainer } from "@/components/ui/tabsContainer";
 import { DaysContainer } from "@/components/ui/daysContainer";
-
-// --- Types ---
 
 type PatientCard = {
   id: number;
@@ -35,12 +32,10 @@ type PatientCard = {
   daysInWard: number;
 };
 
-// Merged Type: Combines UI needs with Backend Data
 type MedicationItem = {
   medicationId: number;
   patientId: number;
   productName: string;
- // UI Specific Fields (Mapped or Defaulted)
   form: string;
   quantity: number;
   quantityUnit: string;
@@ -51,9 +46,35 @@ type MedicationItem = {
   route?: string | null;
   instructionPatient?: string | null;
   endDate?: string | null;
-  status: string; 
+  status: string;
   hasReminder: boolean;
 };
+
+type DayDef = { day: string; date: string; month: string };
+
+function buildDays(): DayDef[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(today);
+  start.setDate(start.getDate() - 30); // 30 μέρες ΠΙΣΩ
+
+  const totalDays = 61; // 30 πίσω + σήμερα + 30 μπροστά
+  const days: DayDef[] = [];
+
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+
+    days.push({
+      day: d.toLocaleDateString(undefined, { weekday: "short" }),
+      date: d.getDate().toString().padStart(2, "0"),
+      month: d.toLocaleDateString(undefined, { month: "short" }),
+    });
+  }
+
+  return days;
+}
 
 function getStr(value: any, fallback: string): string {
   if (Array.isArray(value)) return value[0] ?? fallback;
@@ -61,37 +82,26 @@ function getStr(value: any, fallback: string): string {
   return fallback;
 }
 
-// Logic to convert "01" -> "2025-12-01"
+// αν θες πραγματική ημερομηνία από selectedDay, μπορείς να το αλλάξεις.
+// προς το παρόν μένει όπως πριν (seed data Δεκέμβριος 2025)
 function buildDateParamFromDay(dayStr: string): string {
-  // Hardcoded Year/Month to match your Seed Data (Dec 2025)
-  // In a real app, use new Date() logic, but for testing we force the seed month
   const year = 2025;
-  const month = 11; // Month is 0-indexed (11 = Dec)
+  const month = 11;
   const day = Number(dayStr);
-
   const d = new Date(year, month, day, 12, 0, 0);
-  return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+  return d.toISOString().split("T")[0];
 }
 
 export default function Inpatient3Screen() {
   const params = useLocalSearchParams();
-
-  const [lastSynced, setLastSynced] = useState("");
-
-  
-  //handle selected tab
   const pathname = usePathname();
 
-  const selectedTab = useMemo(() => {
-    if (pathname.startsWith("/inpatient2")) return "Daily monitoring";
-    if (pathname.startsWith("/inpatient3")) return "Medication";
-    if (pathname.startsWith("/inpatient4")) return "Nutrition Intake";
-    if (pathname.startsWith("/inpatient5")) return "Appointments";
-    return "Daily monitoring";
-  }, [pathname]);
+  const [lastSynced, setLastSynced] = useState("");
+  const [selectedDay, setSelectedDay] = useState(
+    () => new Date().getDate().toString().padStart(2, "0")
+  );
 
-
-  const [selectedDay, setSelectedDay] = useState("01");
+  const days = useMemo(buildDays, []);
 
   const [medications, setMedications] = useState<MedicationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -105,18 +115,6 @@ export default function Inpatient3Screen() {
     "Appointments",
   ];
 
-  // Updated days to match December 2025 range
-  const days = [
-
-    
-    { day: "Mon", date: "01" },
-    { day: "Tue", date: "02" },
-    { day: "Wed", date: "03" },
-    { day: "Thu", date: "04" },
-    { day: "Fri", date: "05" },
-    { day: "Sat", date: "06" },
-  ];
-
   useEffect(() => {
     const now = new Date();
     setLastSynced(
@@ -127,10 +125,8 @@ export default function Inpatient3Screen() {
     );
   }, []);
 
-  // STABILIZE PATIENT DATA: Use useMemo instead of useEffect+useState to prevent infinite loops
   const patient = useMemo(() => {
     try {
-      // Use "101" as default ID to match Seed Data
       const idStr = getStr(
         (params as any).patientId ?? (params as any).id,
         "101"
@@ -145,14 +141,13 @@ export default function Inpatient3Screen() {
       return {
         id: Number(idStr),
         name,
-        age: Number(ageStr),
+        age: ageStr ? Number(ageStr) : null,
         ward,
         bed,
         daysInWard: Number(daysStr),
       };
     } catch (e) {
       return {
-
         id: 1,
         name: "Test Patient2",
         age: 66,
@@ -168,12 +163,11 @@ export default function Inpatient3Screen() {
     params.age,
     params.ward,
     params.bed,
-    params.daysInWard
+    params.daysInWard,
   ]);
 
-  // LOAD MEDICATIONS (Merged Logic)
   useEffect(() => {
-    if (!patient) return;
+    if (!patient.id) return;
 
     const loadMeds = async () => {
       try {
@@ -181,7 +175,6 @@ export default function Inpatient3Screen() {
         setLoading(true);
 
         const dateParam = buildDateParamFromDay(selectedDay);
-        // Use the working URL logic
         const url = `${API_BASE_URL}/api/Inpatients/${patient.id}/medication?date=${dateParam}&status=all`;
         console.log("Fetching Meds:", url);
 
@@ -190,35 +183,33 @@ export default function Inpatient3Screen() {
         if (res.ok) {
           const rawData = await res.json();
 
-          // MAP Backend Data -> Frontend UI Structure
-          const mappedData: MedicationItem[] = Array.isArray(rawData) ? rawData.map((m: any) => ({
-            medicationId: m.medicationId,
-            patientId: m.patientId,
-            productName: m.productName || "Unknown Med",
+          const mappedData: MedicationItem[] = Array.isArray(rawData)
+            ? rawData.map((m: any) => ({
+                medicationId: m.medicationId,
+                patientId: m.patientId,
+                productName: m.productName || "Unknown Med",
 
-            // Fields from Backend
-            quantity: m.quantity || 1,
-            quantityUnit: m.quantityUnit || "tab",
-            status: m.status?.toLowerCase() || "not_given",
-            instructionPatient: m.instructionPatient || "No instructions",
+                quantity: m.quantity || 1,
+                quantityUnit: m.quantityUnit || "tab",
+                status: m.status?.toLowerCase() || "not_given",
+                instructionPatient: m.instructionPatient || "No instructions",
 
-            // UI Fields (Defaulted for now until Backend sends them)
-            form: m.form || "Tablet",
-            frequencyAmount: 1,
-            frequencyUnit: "Day",
-            durationAmount: 1,
-            durationUnit: "Week",
-            route: "Oral",
-            endDate: m.endDate || null,
-            hasReminder: false
-          })) : [];
+                form: m.form || "Tablet",
+                frequencyAmount: 1,
+                frequencyUnit: "Day",
+                durationAmount: 1,
+                durationUnit: "Week",
+                route: "Oral",
+                endDate: m.endDate || null,
+                hasReminder: false,
+              }))
+            : [];
 
           setMedications(mappedData);
           setChecked({});
         } else {
           throw new Error("API Failed");
         }
-
       } catch (e: any) {
         console.error("Fetch error:", e);
         setError("Could not load medications. Check server.");
@@ -228,7 +219,7 @@ export default function Inpatient3Screen() {
     };
 
     loadMeds();
-  }, [patient, selectedDay]); // Re-run when day changes
+  }, [patient.id, selectedDay]);
 
   const toggleCheck = (id: number) => {
     setChecked((prev) => ({
@@ -247,6 +238,13 @@ export default function Inpatient3Screen() {
       daysInWard: String(patient.daysInWard),
     };
 
+  const selectedTab = useMemo(() => {
+    if (pathname.startsWith("/inpatient2")) return "Daily monitoring";
+    if (pathname.startsWith("/inpatient3")) return "Medication";
+    if (pathname.startsWith("/inpatient4")) return "Nutrition Intake";
+    if (pathname.startsWith("/inpatient5")) return "Appointments";
+    return "Daily monitoring";
+  }, [pathname]);
 
   const handleSelectTab = (tab: string) => {
     if (!navParams) return;
@@ -258,31 +256,26 @@ export default function Inpatient3Screen() {
           params: navParams,
         });
         break;
-
       case "Medication":
         router.push({
           pathname: "/inpatient3",
           params: navParams,
         });
         break;
-
       case "Nutrition Intake":
         router.push({
           pathname: "/inpatient4",
           params: navParams,
         });
         break;
-
       case "Appointments":
         router.push({
           pathname: "/inpatient5",
           params: navParams,
-        })
-
+        });
         break;
     }
   };
-
 
   return (
     <SafeAreaView
@@ -290,79 +283,72 @@ export default function Inpatient3Screen() {
       edges={["top", "left", "right"]}
     >
       <View style={styles.inner}>
+        {/* HEADER + PATIENT INFO (ίδιο pattern με inpatient2 / PatientsScreen) */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.replace("../patients")}>
+            <MaterialIcons
+              name="arrow-back-ios"
+              size={20}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Patient Details</Text>
+        </View>
+
+        <Text style={styles.syncedText}>Last synced: {lastSynced}</Text>
+
+        <View style={styles.patientInfo}>
+          <Image
+            source={require("../../assets/images/user.png")}
+            style={styles.userIcon}
+          />
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>
+              {patient?.name ?? "John Smith"} ({patient?.age ?? "?"}yo)
+            </Text>
+
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MaterialCommunityIcons
+                name="doctor"
+                size={18}
+                color="#B0B0B0"
+              />
+              <Text style={[styles.subText, { marginLeft: 6 }]}>
+                George Adamides
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FontAwesome name="bed" size={18} color="#B0B0B0" />
+              <Text style={[styles.subText, { marginLeft: 6 }]}>
+                {patient?.ward ?? "Unassigned"} | {patient?.bed ?? "N/A"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <TabsContainer
+          tabs={tabs}
+          selectedTab={selectedTab}
+          onSelect={handleSelectTab}
+        />
+
+        <DaysContainer
+          days={days}
+          selectedDay={selectedDay}
+          onSelect={(d) => setSelectedDay(d)}
+        />
+
+        {/* CONTENT που κάνει scroll */}
         <ScrollView
-          style={styles.container}
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-
-            {/* navigate back to patients list */}
-            <TouchableOpacity onPress={() => router.replace("../patients")}>
-              <MaterialIcons
-                name="arrow-back-ios"
-                size={20}
-                color={theme.colors.text}
-              />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Patient Details</Text>
-          </View>
-
-          <Text style={styles.syncedText}>Last synced: {lastSynced}</Text>
-
-          {/* Patient Info */}
-          <View style={styles.patientInfo}>
-            <Image
-              source={require("../../assets/images/user.png")}
-              style={styles.userIcon}
-            />
-
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>
-                {patient?.name ?? "John Smith"} ({patient?.age ?? "?"}yo)
-              </Text>
-
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <MaterialCommunityIcons
-                  name="doctor"
-                  size={18}
-                  color="#B0B0B0"
-                />
-                <Text style={[styles.subText, { marginLeft: 6 }]}>
-
-                  George Adamides
-                </Text>
-              </View>
-
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <FontAwesome name="bed" size={18} color="#B0B0B0" />
-                <Text style={[styles.subText, { marginLeft: 6 }]}>
-                  {patient?.ward ?? "Unassigned"} | {patient?.bed ?? "N/A"}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Tabs */}
-          <TabsContainer
-            tabs={tabs}
-            selectedTab={selectedTab}
-
-            onSelect={handleSelectTab}
-          />
-
-          {/* Days */}
-          <DaysContainer
-            days={days}
-            selectedDay={selectedDay}
-            onSelect={(d) => setSelectedDay(d)}
-          />
-
           <Text style={styles.sectionTitle}>Medication Schedule</Text>
           <View style={styles.line} />
 
-          {/* Content */}
           {loading ? (
             <View style={{ marginTop: 24, alignItems: "center" }}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -374,7 +360,9 @@ export default function Inpatient3Screen() {
                 size={60}
                 color={theme.colors.primaryDark}
               />
-              <Text style={styles.noMedsText}>No medication for Dec {selectedDay}.</Text>
+              <Text style={styles.noMedsText}>
+                No medication for {selectedDay}.
+              </Text>
             </View>
           ) : (
             medications.map((m) => {
@@ -389,10 +377,7 @@ export default function Inpatient3Screen() {
 
               return (
                 <View key={m.medicationId} style={styles.medCard}>
-                  {/* Top Row */}
-                  <View
-                    style={{ flexDirection: "row", alignItems: "center" }}
-                  >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <MaterialCommunityIcons
                       name="pill"
                       size={28}
@@ -404,22 +389,17 @@ export default function Inpatient3Screen() {
                     </Text>
                   </View>
 
-                  {/* Dose */}
                   <Text style={styles.medSub}>{doseLine}</Text>
 
                   <View style={styles.decorativeLine} />
 
-                  {/* Notes */}
                   {m.instructionPatient ? (
                     <Text style={styles.medNote}>
                       • Instructions: {m.instructionPatient}
                     </Text>
                   ) : null}
-                  <Text style={styles.medNote}>
-                    • End Date: {endDateStr}
-                  </Text>
+                  <Text style={styles.medNote}>• End Date: {endDateStr}</Text>
 
-                  {/* Footer */}
                   <View style={styles.cardFooter}>
                     <View
                       style={{
@@ -434,14 +414,11 @@ export default function Inpatient3Screen() {
                         size={20}
                         color={theme.colors.primary}
                       />
-                      <Text
-                        style={[styles.addReminder, { marginLeft: 6 }]}
-                      >
+                      <Text style={[styles.addReminder, { marginLeft: 6 }]}>
                         Add reminder
                       </Text>
                     </View>
 
-                    {/* Checkbox */}
                     <TouchableOpacity
                       onPress={() => toggleCheck(m.medicationId)}
                     >
@@ -466,7 +443,14 @@ export default function Inpatient3Screen() {
           )}
 
           {error && (
-            <Text style={{ color: "red", marginTop: 8, fontSize: 12, textAlign: 'center' }}>
+            <Text
+              style={{
+                color: "red",
+                marginTop: 8,
+                fontSize: 12,
+                textAlign: "center",
+              }}
+            >
               {error}
             </Text>
           )}
@@ -476,7 +460,6 @@ export default function Inpatient3Screen() {
   );
 }
 
-// --- Styles (Kept exactly as requested) ---
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
@@ -490,22 +473,20 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: "100%",
   },
-
   container: {
     flex: 1,
     backgroundColor: theme.colors.bg,
     padding: theme.spacing.md,
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: theme.spacing.xs,
+    marginBottom: 4,
   },
   headerTitle: {
-    fontSize: theme.font.lg,
+    fontSize: 22,
     fontWeight: "700",
-    marginLeft: theme.spacing.xs,
+    marginLeft: 8,
     color: theme.colors.text,
   },
   syncedText: {
@@ -513,7 +494,6 @@ const styles = StyleSheet.create({
     color: theme.colors.mutedText,
     marginBottom: theme.spacing.md,
   },
-
   patientInfo: {
     flexDirection: "row",
     alignItems: "center",
@@ -534,7 +514,6 @@ const styles = StyleSheet.create({
     fontSize: theme.font.sm,
     color: theme.colors.mutedText,
   },
-
   sectionTitle: {
     fontSize: theme.font.md,
     fontWeight: "600",
@@ -545,13 +524,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.border,
     marginBottom: theme.spacing.lg,
   },
-
   noMedsText: {
     marginTop: 8,
     fontSize: 13,
     color: theme.colors.mutedText,
   },
-
   medCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
@@ -563,43 +540,36 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-
   medTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: theme.colors.text,
   },
-
   medSub: {
     color: theme.colors.primary,
     fontWeight: "700",
     marginTop: 10,
   },
-
   medNote: {
     color: theme.colors.mutedText,
     fontSize: 12,
     marginTop: 2,
   },
-
   decorativeLine: {
     height: 1,
     backgroundColor: "#d9d9d9",
     width: "100%",
     marginVertical: 8,
   },
-
   cardFooter: {
     marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
   },
-
   addReminder: {
     color: theme.colors.primary,
     fontWeight: "600",
   },
-
   checkInactive: {
     width: 34,
     height: 34,
@@ -610,7 +580,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   checkActive: {
     width: 34,
     height: 34,
