@@ -3,7 +3,7 @@
 A full-stack healthcare system built as a university team project. Handles patient management, medication tracking, nutrition plans, and nurse shift scheduling.
 
 ## What I Worked On
-- Built the Clock In/Out feature for nurses — backend logic and REST API
+- Built the Clock In/Out feature for nurses, backend logic and REST API
 - Developed REST API endpoints using .NET Core
 - Helped integrate medication and nutrition modules
 - Connected frontend and backend across key features
